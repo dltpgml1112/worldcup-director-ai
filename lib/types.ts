@@ -17,7 +17,8 @@ export interface Player {
   x: number; // 0-100 (pitch width)
   y: number; // 0-100 (own goal 0 -> opponent goal 100)
   rating: number; // 0-100
-  stamina: number; // 0-100
+  stamina: number; // 0-100 (초기값; 실시간 소모는 lib/stamina.ts에서 계산)
+  onAt?: number; // 교체 투입된 분 (선발은 0)
 }
 
 export type EventType =
@@ -61,6 +62,7 @@ export interface MatchData {
   away: Team;
   homeXI: Player[];
   awayXI: Player[];
+  homeBench?: Player[]; // 사용자(홈) 교체 후보
   timeline: MatchEvent[];
   finalScore: [number, number]; // regulation/ET
   penalties?: [number, number];

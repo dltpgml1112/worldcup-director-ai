@@ -26,8 +26,45 @@ function buildXI(seeds: Seed[], formation: keyof typeof FORMATIONS): Player[] {
     y: slots[i]?.y ?? 50,
     rating: s.rating,
     stamina: 100,
+    onAt: 0,
   }));
 }
+
+interface BenchSeed extends Seed { role: string }
+
+function buildBench(prefix: string, seeds: BenchSeed[]): Player[] {
+  return seeds.map((s, i) => ({
+    id: `bench-${prefix}-${i}-${s.num}`,
+    name: s.name,
+    num: s.num,
+    role: s.role,
+    x: 50,
+    y: 50,
+    rating: s.rating,
+    stamina: 100,
+    onAt: 0,
+  }));
+}
+
+const ARG_2022_BENCH = buildBench("arg22", [
+  { name: "L. Martínez", num: 22, role: "ST", rating: 84 },
+  { name: "Dybala", num: 21, role: "AM", rating: 83 },
+  { name: "Paredes", num: 5, role: "CM", rating: 81 },
+  { name: "Montiel", num: 4, role: "RB", rating: 78 },
+  { name: "Pezzella", num: 6, role: "CB", rating: 79 },
+  { name: "Acuña", num: 8, role: "LB", rating: 80 },
+  { name: "Palacios", num: 14, role: "CM", rating: 78 },
+]);
+
+const FRA_2018_BENCH = buildBench("fra18", [
+  { name: "Fekir", num: 12, role: "AM", rating: 81 },
+  { name: "N'Zonzi", num: 15, role: "CM", rating: 80 },
+  { name: "Dembélé", num: 11, role: "RW", rating: 82 },
+  { name: "Lemar", num: 8, role: "LM", rating: 80 },
+  { name: "Sidibé", num: 19, role: "RB", rating: 78 },
+  { name: "Thauvin", num: 26, role: "RW", rating: 80 },
+  { name: "Mendy", num: 22, role: "LB", rating: 79 },
+]);
 
 const ARG_2022 = buildXI(
   [
@@ -107,6 +144,7 @@ export const MATCHES: MatchData[] = [
     away: T.FRA,
     homeXI: ARG_2022,
     awayXI: FRA_2022,
+    homeBench: ARG_2022_BENCH,
     finalScore: [3, 3],
     penalties: [4, 2],
     weakFlank: "left",
@@ -144,6 +182,7 @@ export const MATCHES: MatchData[] = [
     away: T.CRO,
     homeXI: FRA_2018,
     awayXI: CRO_2018,
+    homeBench: FRA_2018_BENCH,
     finalScore: [4, 2],
     weakFlank: "right",
     realNarrative:

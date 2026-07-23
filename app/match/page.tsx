@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate } from "@/lib/matchEngine";
+import { startCrowd, stopCrowd, setCrowdLevel, goalRoar } from "@/lib/audio";
 import Scoreboard from "@/components/Scoreboard";
 import StatBars from "@/components/StatBars";
 import MomentumBar from "@/components/MomentumBar";
@@ -14,6 +15,8 @@ import EventFeed from "@/components/EventFeed";
 import TacticalPitch from "@/components/TacticalPitch";
 import TacticalControls from "@/components/TacticalControls";
 import AICoachPanel from "@/components/AICoachPanel";
+import SubstitutionPanel from "@/components/SubstitutionPanel";
+import PostMatchReport from "@/components/PostMatchReport";
 
 export default function MatchPage() {
   const coachName = useGame((s) => s.coachName);
@@ -23,16 +26,59 @@ export default function MatchPage() {
   const speed = useGame((s) => s.speed);
   const tactics = useGame((s) => s.tactics);
   const formation = useGame((s) => s.formation);
+  const sound = useGame((s) => s.sound);
+  const setSound = useGame((s) => s.setSound);
   const { togglePlay, setSpeed, tick, resetClock, setMinute } = useGame();
+
+  const [reportOpen, setReportOpen] = useState(false);
+  const reportShownFor = useRef<number>(-1);
 
   const match = getMatch(matchId);
   const end = match?.timeline[match.timeline.length - 1]?.minute ?? 90;
+  const isFT = minute >= end;
 
   useEffect(() => {
     if (!playing) return;
     const id = setInterval(() => tick(), Math.max(60, 1000 / speed));
     return () => clearInterval(id);
   }, [playing, speed, tick]);
+
+  // 사운드 토글 → 크라우드 앰비언스 시작/정지
+  useEffect(() => {
+    if (sound) startCrowd();
+    else stopCrowd();
+    return () => stopCrowd();
+  }, [sound]);
+
+  // 전-경기 리셋 시 리포트 상태 초기화
+  useEffect(() => {
+    if (minute === 0) {
+      setReportOpen(false);
+      reportShownFor.current = -1;
+    }
+  }, [minute]);
+
+  // 크라우드 웅성거림을 모멘텀에 연동
+  useEffect(() => {
+    if (!sound || !match) return;
+    const s = snapshotAt(match, minute, tactics);
+    setCrowdLevel(Math.abs(s.momentum));
+  }, [sound, match, minute, tactics]);
+
+  // 골 발생 시 함성
+  useEffect(() => {
+    if (!match || !sound) return;
+    const goal = match.timeline.find((e) => e.minute === minute && e.type === "goal");
+    if (goal) goalRoar();
+  }, [minute, match, sound]);
+
+  // 풀타임 도달 시 리포트 자동 오픈 (한 번만)
+  useEffect(() => {
+    if (isFT && reportShownFor.current !== end) {
+      reportShownFor.current = end;
+      setReportOpen(true);
+    }
+  }, [isFT, end]);
 
   if (!match) {
     return (
@@ -56,7 +102,21 @@ export default function MatchPage() {
             Director: <span className="text-neon-grass">{coachName}</span>
           </div>
         </div>
-        <div className="chip bg-white/5 text-white/60">{formation} · Live</div>
+        <div className="flex items-center gap-2">
+          {isFT && (
+            <button onClick={() => setReportOpen(true)} className="chip bg-neon-gold/20 text-neon-gold hover:bg-neon-gold/30">
+              🏁 Full-Time Report
+            </button>
+          )}
+          <button
+            onClick={() => setSound(!sound)}
+            className={`chip transition ${sound ? "bg-neon-grass/20 text-neon-grass" : "bg-white/5 text-white/60 hover:bg-white/10"}`}
+            title="Crowd ambience"
+          >
+            {sound ? "🔊 Sound" : "🔇 Sound"}
+          </button>
+          <div className="chip bg-white/5 text-white/60">{formation} · Live</div>
+        </div>
       </header>
 
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
@@ -107,6 +167,8 @@ export default function MatchPage() {
               </div>
             </div>
           </div>
+
+          <SubstitutionPanel />
         </div>
 
         {/* 우: 커맨더리 + AI 코치 + 컨트롤 */}
@@ -116,6 +178,16 @@ export default function MatchPage() {
           <EventFeed match={match} minute={minute} />
         </div>
       </div>
+
+      {/* 경기 후 리포트 */}
+      <PostMatchReport
+        match={match}
+        snap={snap}
+        tactics={tactics}
+        alt={alt}
+        open={reportOpen}
+        onClose={() => setReportOpen(false)}
+      />
 
       {/* 골 세리머니 오버레이 */}
       <AnimatePresence>

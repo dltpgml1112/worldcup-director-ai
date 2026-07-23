@@ -1,5 +1,6 @@
-import type { FormationKey, MatchData, Tactics } from "./types";
+import type { FormationKey, MatchData, Player, Tactics } from "./types";
 import type { MatchSnapshot } from "./matchEngine";
+import { playerStamina } from "./stamina";
 
 export interface CoachTip {
   id: string;
@@ -11,14 +12,16 @@ export interface CoachTip {
 
 /**
  * 결정론적 택티컬 어시스턴트.
- * 경기 스냅샷 + 현재 택틱 + 포메이션을 읽어 근거 있는 추천을 생성한다.
+ * 경기 스냅샷 + 현재 택틱 + 포메이션 + 스쿼드를 읽어 근거 있는 추천을 생성한다.
  * confidence = 근거 지표의 강도(설명 가능).
  */
 export function coachTips(
   match: MatchData,
   snap: MatchSnapshot,
   tactics: Tactics,
-  formation: FormationKey
+  formation: FormationKey,
+  players: Player[] = [],
+  subsUsed = 0
 ): CoachTip[] {
   const tips: CoachTip[] = [];
   const [hs, as] = snap.score;
@@ -95,6 +98,27 @@ export function coachTips(
       confidence: 59,
       severity: "warning",
     });
+  }
+
+  // 6) 체력 고갈 → 교체 권고
+  if (players.length && snap.minute > 55 && subsUsed < 5) {
+    const gassed = players
+      .filter((p) => p.role.toUpperCase() !== "GK")
+      .map((p) => ({ p, s: playerStamina(p, snap.minute, tactics) }))
+      .filter((x) => x.s < 42)
+      .sort((a, b) => a.s - b.s);
+    if (gassed.length) {
+      const worst = gassed[0];
+      tips.push({
+        id: "sub-fatigue",
+        headline: `${worst.p.name} is gassed (${Math.round(worst.s)}%) — bring on fresh legs.`,
+        reason:
+          `${gassed.length} of your outfield players are below 42% stamina at minute ${snap.minute}. ` +
+          `A substitution restores intensity and protects the ${diff >= 0 ? "lead" : "chase"}. You have ${5 - subsUsed} left.`,
+        confidence: Math.min(88, 60 + Math.round((42 - worst.s) * 1.5)),
+        severity: "warning",
+      });
+    }
   }
 
   return tips

@@ -4,6 +4,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import type { MatchData, FormationKey, Tactics } from "@/lib/types";
 import type { MatchSnapshot } from "@/lib/matchEngine";
 import { coachTips } from "@/lib/aiCoach";
+import { useGame } from "@/lib/store";
 
 const SEV: Record<string, { ring: string; text: string; tag: string }> = {
   opportunity: { ring: "border-neon-grass/50", text: "text-neon-grass", tag: "OPPORTUNITY" },
@@ -22,7 +23,9 @@ export default function AICoachPanel({
   tactics: Tactics;
   formation: FormationKey;
 }) {
-  const tips = coachTips(match, snap, tactics, formation);
+  const players = useGame((s) => s.players);
+  const subsUsed = useGame((s) => s.subsUsed);
+  const tips = coachTips(match, snap, tactics, formation, players, subsUsed);
   return (
     <div className="glass-strong rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
