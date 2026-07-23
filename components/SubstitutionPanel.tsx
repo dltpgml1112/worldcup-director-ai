@@ -53,7 +53,10 @@ export default function SubstitutionPanel() {
             >
               <span className="w-6 shrink-0 text-center font-display text-xs font-bold tabular-nums text-white/60">{p.num}</span>
               <span className="w-8 shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/40">{p.role}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{displayName(lang, p.name, p.nameKo)}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                {p.legend && <span className="mr-0.5">⭐</span>}
+                {displayName(lang, p.name, p.nameKo)}
+              </span>
               <span className="flex w-24 shrink-0 items-center gap-1.5">
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                   <span className="block h-full rounded-full" style={{ width: `${s}%`, background: tone.color }} />
@@ -93,7 +96,11 @@ export default function SubstitutionPanel() {
                   >
                     <span className="w-6 shrink-0 text-center font-display text-xs font-bold tabular-nums text-white/60">{b.num}</span>
                     <span className="w-8 shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/40">{b.role}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{displayName(lang, b.name, b.nameKo)}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">
+                      {b.legend && <span className="mr-0.5">⭐</span>}
+                      {displayName(lang, b.name, b.nameKo)}
+                      {b.legend && <span className="ml-1 chip bg-neon-gold/20 text-[8px] text-neon-gold">{t(lang, "board.legend")}</span>}
+                    </span>
                     <span className="chip bg-white/5 text-[10px] text-neon-grass">{b.rating} {t(lang, "sub.ovr")}</span>
                     <span className="text-xs text-neon-grass">{t(lang, "sub.on")}</span>
                   </button>

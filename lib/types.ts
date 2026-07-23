@@ -21,6 +21,7 @@ export interface Player {
   rating: number; // 0-100
   stamina: number; // 0-100 (초기값; 실시간 소모는 lib/stamina.ts에서 계산)
   onAt?: number; // 교체 투입된 분 (선발은 0)
+  legend?: boolean; // 번외 스타/레전드 (선발엔 없지만 팬 로망)
 }
 
 export type EventType =

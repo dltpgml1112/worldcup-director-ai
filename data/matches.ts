@@ -33,7 +33,7 @@ function buildXI(seeds: Seed[], formation: keyof typeof FORMATIONS): Player[] {
   }));
 }
 
-interface BenchSeed extends Seed { role: string }
+interface BenchSeed extends Seed { role: string; legend?: boolean }
 
 function buildBench(prefix: string, seeds: BenchSeed[]): Player[] {
   return seeds.map((s, i) => ({
@@ -47,6 +47,7 @@ function buildBench(prefix: string, seeds: BenchSeed[]): Player[] {
     rating: s.rating,
     stamina: 100,
     onAt: 0,
+    legend: s.legend,
   }));
 }
 
@@ -75,6 +76,12 @@ const KOR_2026_BENCH = buildBench("kor26", [
   { name: "Kim Ju-sung", nameKo: "김주성", num: 20, role: "CB", rating: 76 },
   { name: "Jung Woo-yeong", nameKo: "정우영", num: 16, role: "CM", rating: 77 },
   { name: "Song Bum-keun", nameKo: "송범근", num: 1, role: "GK", rating: 77 },
+  // ⭐ 번외 레전드/스타 — 선발엔 없지만 팬들의 로망 (역대 대표팀 스타)
+  { name: "Cha Bum-kun", nameKo: "차범근", num: 12, role: "ST", rating: 90, legend: true },
+  { name: "Park Ji-sung", nameKo: "박지성", num: 13, role: "CM", rating: 88, legend: true },
+  { name: "Ahn Jung-hwan", nameKo: "안정환", num: 24, role: "ST", rating: 85, legend: true },
+  { name: "Lee Chung-yong", nameKo: "이청용", num: 14, role: "RW", rating: 83, legend: true },
+  { name: "Lee Seung-woo", nameKo: "이승우", num: 25, role: "AM", rating: 82, legend: true },
 ]);
 
 const RSA_2026 = buildXI(
