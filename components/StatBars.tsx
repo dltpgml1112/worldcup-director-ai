@@ -3,19 +3,22 @@
 import { motion } from "framer-motion";
 import type { MatchData } from "@/lib/types";
 import type { MatchSnapshot } from "@/lib/matchEngine";
+import { useGame } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 export default function StatBars({ match, snap }: { match: MatchData; snap: MatchSnapshot }) {
+  const lang = useGame((s) => s.lang);
   const rows: { label: string; h: number | string; a: number | string; pct: [number, number] }[] = [
-    { label: "Possession", h: `${snap.possession[0]}%`, a: `${snap.possession[1]}%`, pct: snap.possession },
-    { label: "Expected Goals (xG)", h: snap.xg[0].toFixed(2), a: snap.xg[1].toFixed(2), pct: ratio(snap.xg[0], snap.xg[1]) },
-    { label: "Shots", h: snap.shots[0], a: snap.shots[1], pct: ratio(snap.shots[0], snap.shots[1]) },
-    { label: "Corners", h: snap.corners[0], a: snap.corners[1], pct: ratio(snap.corners[0], snap.corners[1]) },
+    { label: t(lang, "stats.possession"), h: `${snap.possession[0]}%`, a: `${snap.possession[1]}%`, pct: snap.possession },
+    { label: t(lang, "stats.xg"), h: snap.xg[0].toFixed(2), a: snap.xg[1].toFixed(2), pct: ratio(snap.xg[0], snap.xg[1]) },
+    { label: t(lang, "stats.shots"), h: snap.shots[0], a: snap.shots[1], pct: ratio(snap.shots[0], snap.shots[1]) },
+    { label: t(lang, "stats.corners"), h: snap.corners[0], a: snap.corners[1], pct: ratio(snap.corners[0], snap.corners[1]) },
   ];
   return (
     <div className="glass rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-white/50">
         <span style={{ color: match.home.primary }}>{match.home.code}</span>
-        <span>Match Stats</span>
+        <span>{t(lang, "stats.title")}</span>
         <span style={{ color: match.away.primary }}>{match.away.code}</span>
       </div>
       <div className="space-y-3">

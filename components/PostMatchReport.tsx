@@ -6,6 +6,7 @@ import type { MatchData, Tactics } from "@/lib/types";
 import type { MatchSnapshot } from "@/lib/matchEngine";
 import { buildReport } from "@/lib/postMatch";
 import { useGame } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 export default function PostMatchReport({
   match,
@@ -25,19 +26,29 @@ export default function PostMatchReport({
   const coachName = useGame((s) => s.coachName);
   const players = useGame((s) => s.players);
   const subLog = useGame((s) => s.subLog);
+  const lang = useGame((s) => s.lang);
   const [copied, setCopied] = useState(false);
 
+  const homeName = lang === "ko" ? match.home.nameKo : match.home.name;
+  const awayName = lang === "ko" ? match.away.nameKo : match.away.name;
+
   const report = useMemo(
-    () => buildReport(match, players, snap, tactics, coachName, alt),
-    [match, players, snap, tactics, coachName, alt]
+    () => buildReport(match, players, snap, tactics, coachName, alt, lang),
+    [match, players, snap, tactics, coachName, alt, lang]
   );
 
   const summary =
-    `⚽ World Cup Director AI — Full-Time Report\n` +
-    `${coachName} · ${match.home.name} vs ${match.away.name} (${match.year} ${match.stage})\n` +
-    `Real: ${match.finalScore[0]}–${match.finalScore[1]}  |  Your history: ${alt.score[0]}–${alt.score[1]}\n` +
-    `Grade ${report.grade} (${report.gradeScore}/100) · MOTM ${report.motm.name} ${report.motm.rating.toFixed(1)}/10\n` +
-    `"${report.headlines[0]}"`;
+    lang === "ko"
+      ? `⚽ World Cup Director AI — 경기 후 리포트\n` +
+        `${coachName} · ${homeName} vs ${awayName} (${match.year})\n` +
+        `실제: ${match.finalScore[0]}–${match.finalScore[1]}  |  나의 결과: ${alt.score[0]}–${alt.score[1]}\n` +
+        `등급 ${report.grade} (${report.gradeScore}/100) · MOTM ${report.motm.name} ${report.motm.rating.toFixed(1)}/10\n` +
+        `"${report.headlines[0]}"`
+      : `⚽ World Cup Director AI — Full-Time Report\n` +
+        `${coachName} · ${homeName} vs ${awayName} (${match.year})\n` +
+        `Real: ${match.finalScore[0]}–${match.finalScore[1]}  |  Your history: ${alt.score[0]}–${alt.score[1]}\n` +
+        `Grade ${report.grade} (${report.gradeScore}/100) · MOTM ${report.motm.name} ${report.motm.rating.toFixed(1)}/10\n` +
+        `"${report.headlines[0]}"`;
 
   const copySummary = async () => {
     try {
@@ -68,9 +79,10 @@ export default function PostMatchReport({
     ctx.font = "700 30px system-ui, sans-serif";
     ctx.fillText("⚽ WORLD CUP DIRECTOR AI", 70, 90);
 
+    const ko = lang === "ko";
     ctx.fillStyle = "#7c8aa0";
     ctx.font = "600 26px system-ui, sans-serif";
-    ctx.fillText(`${match.year} ${match.stage} · ${match.venue}`, 70, 132);
+    ctx.fillText(`${match.year} ${ko ? "월드컵" : "World Cup"} · ${match.venue}`, 70, 132);
 
     // 팀 & 스코어
     ctx.fillStyle = "#e8eef7";
@@ -79,24 +91,28 @@ export default function PostMatchReport({
 
     ctx.fillStyle = "#7c8aa0";
     ctx.font = "500 24px system-ui, sans-serif";
-    ctx.fillText(`Real result ${match.finalScore[0]}–${match.finalScore[1]}  ·  Projected win probability ${alt.homeWinProb}%`, 70, 275);
+    ctx.fillText(
+      ko
+        ? `실제 결과 ${match.finalScore[0]}–${match.finalScore[1]}  ·  예상 승률 ${alt.homeWinProb}%`
+        : `Real result ${match.finalScore[0]}–${match.finalScore[1]}  ·  Projected win probability ${alt.homeWinProb}%`,
+      70,
+      275
+    );
 
     // 등급 뱃지
     ctx.fillStyle = "#ffd54a";
     ctx.font = "800 150px system-ui, sans-serif";
     ctx.textAlign = "right";
     ctx.fillText(report.grade, 1130, 250);
-    ctx.textAlign = "left";
     ctx.fillStyle = "#7c8aa0";
     ctx.font = "600 22px system-ui, sans-serif";
-    ctx.textAlign = "right";
-    ctx.fillText("DIRECTOR GRADE", 1130, 290);
+    ctx.fillText(ko ? "감독 등급" : "DIRECTOR GRADE", 1130, 290);
     ctx.textAlign = "left";
 
     // MOTM
     ctx.fillStyle = "#5ad2ff";
     ctx.font = "700 26px system-ui, sans-serif";
-    ctx.fillText("MAN OF THE MATCH", 70, 380);
+    ctx.fillText(ko ? "맨 오브 더 매치" : "MAN OF THE MATCH", 70, 380);
     ctx.fillStyle = "#e8eef7";
     ctx.font = "700 44px system-ui, sans-serif";
     ctx.fillText(`${report.motm.name}  —  ${report.motm.rating.toFixed(1)} / 10`, 70, 430);
@@ -109,7 +125,7 @@ export default function PostMatchReport({
     // 코치 서명
     ctx.fillStyle = "#7c8aa0";
     ctx.font = "600 24px system-ui, sans-serif";
-    ctx.fillText(`Directed by ${coachName}`, 70, 595);
+    ctx.fillText(ko ? `감독: ${coachName}` : `Directed by ${coachName}`, 70, 595);
 
     const a = document.createElement("a");
     a.href = c.toDataURL("image/png");
@@ -143,23 +159,23 @@ export default function PostMatchReport({
               ✕
             </button>
 
-            <div className="chip mb-2 bg-neon-gold/20 text-neon-gold">🏁 Full-Time Report</div>
+            <div className="chip mb-2 bg-neon-gold/20 text-neon-gold">{t(lang, "rep.badge")}</div>
             <h2 className="font-display text-3xl font-bold uppercase tracking-tight sm:text-4xl">
-              {match.home.name} <span className="text-white/40">vs</span> {match.away.name}
+              {homeName} <span className="text-white/40">{t(lang, "common.vs")}</span> {awayName}
             </h2>
 
             {/* 스코어 요약 */}
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <SummaryTile label="Real History" value={`${match.finalScore[0]}–${match.finalScore[1]}`} />
-              <SummaryTile label="Your History" value={`${alt.score[0]}–${alt.score[1]}`} accent />
-              <SummaryTile label="Win Prob" value={`${alt.homeWinProb}%`} />
-              <SummaryTile label="Grade" value={report.grade} gold />
+              <SummaryTile label={t(lang, "rep.real")} value={`${match.finalScore[0]}–${match.finalScore[1]}`} />
+              <SummaryTile label={t(lang, "rep.your")} value={`${alt.score[0]}–${alt.score[1]}`} accent />
+              <SummaryTile label={t(lang, "rep.winprob")} value={`${alt.homeWinProb}%`} />
+              <SummaryTile label={t(lang, "rep.grade")} value={report.grade} gold />
             </div>
 
             {/* AI 총평 */}
             <div className="mt-5 rounded-2xl border border-neon-ice/30 bg-neon-ice/5 p-4">
               <div className="mb-1 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-neon-ice">
-                🧠 AI Verdict {realChanged && <span className="chip bg-neon-grass/15 text-neon-grass">HISTORY REWRITTEN</span>}
+                🧠 {t(lang, "rep.verdict")} {realChanged && <span className="chip bg-neon-grass/15 text-neon-grass">{t(lang, "rep.rewritten")}</span>}
               </div>
               <p className="text-sm leading-relaxed text-white/80">{report.verdict}</p>
             </div>
@@ -167,7 +183,7 @@ export default function PostMatchReport({
             <div className="mt-5 grid gap-5 lg:grid-cols-2">
               {/* 선수 평점 */}
               <div>
-                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/50">Player Ratings</div>
+                <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "rep.ratings")}</div>
                 <div className="space-y-1.5">
                   {[...report.ratings]
                     .sort((a, b) => b.rating - a.rating)
@@ -184,7 +200,7 @@ export default function PostMatchReport({
                           <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                             {r.name}
                             {r.goals > 0 && <span className="ml-1 text-neon-gold">{"⚽".repeat(r.goals)}</span>}
-                            {isMotm && <span className="ml-1.5 chip bg-neon-gold/20 text-[9px] text-neon-gold">MOTM</span>}
+                            {isMotm && <span className="ml-1.5 chip bg-neon-gold/20 text-[9px] text-neon-gold">{t(lang, "rep.motm")}</span>}
                           </span>
                           <span className="hidden text-[10px] text-white/40 sm:block">{r.note}</span>
                           <span
@@ -205,7 +221,7 @@ export default function PostMatchReport({
               {/* 헤드라인 + 교체 로그 */}
               <div className="space-y-4">
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/50">📰 Back Pages</div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "rep.backpages")}</div>
                   <div className="space-y-2">
                     {report.headlines.map((h, i) => (
                       <div key={i} className="rounded-lg border border-white/10 bg-white/5 p-2.5">
@@ -216,19 +232,19 @@ export default function PostMatchReport({
                 </div>
 
                 <div>
-                  <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/50">🔁 Substitutions</div>
+                  <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "rep.subs")}</div>
                   {subLog.length === 0 ? (
                     <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/40">
-                      No substitutions made — you rode with your XI.
+                      {t(lang, "rep.noSubs")}
                     </div>
                   ) : (
                     <div className="space-y-1.5">
                       {subLog.map((s, i) => (
                         <div key={i} className="flex items-center gap-2 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1.5 text-xs">
                           <span className="font-display font-bold tabular-nums text-white/60">{s.minute}'</span>
-                          <span className="text-neon-red">↓ {s.offName}</span>
+                          <span className="text-neon-red">↓ {lang === "ko" && s.offNameKo ? s.offNameKo : s.offName}</span>
                           <span className="text-white/30">→</span>
-                          <span className="text-neon-grass">↑ {s.onName}</span>
+                          <span className="text-neon-grass">↑ {lang === "ko" && s.onNameKo ? s.onNameKo : s.onName}</span>
                         </div>
                       ))}
                     </div>
@@ -240,19 +256,19 @@ export default function PostMatchReport({
             {/* 공유 */}
             <div className="mt-6 flex flex-wrap items-center gap-3">
               <button onClick={downloadCard} className="btn-primary !py-2.5 !text-sm">
-                <span className="relative z-10">🖼️ Download Share Card</span>
+                <span className="relative z-10">{t(lang, "rep.download")}</span>
               </button>
               <button
                 onClick={copySummary}
                 className="rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white/80 transition hover:bg-white/10"
               >
-                {copied ? "✓ Copied!" : "📋 Copy Summary"}
+                {copied ? t(lang, "rep.copied") : t(lang, "rep.copy")}
               </button>
               <button
                 onClick={onClose}
                 className="ml-auto rounded-xl border border-white/15 bg-white/5 px-5 py-2.5 text-sm font-semibold text-white/60 transition hover:bg-white/10"
               >
-                Back to match
+                {t(lang, "rep.back")}
               </button>
             </div>
           </motion.div>

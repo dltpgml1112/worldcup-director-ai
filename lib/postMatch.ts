@@ -1,5 +1,7 @@
 import type { MatchData, Player, Tactics } from "./types";
 import type { MatchSnapshot } from "./matchEngine";
+import type { Lang } from "./i18n";
+import { displayName } from "./i18n";
 import { playerStamina } from "./stamina";
 
 export interface PlayerRating {
@@ -42,8 +44,10 @@ export function buildReport(
   snap: MatchSnapshot,
   tactics: Tactics,
   coachName: string,
-  alt: { score: [number, number]; homeWinProb: number }
+  alt: { score: [number, number]; homeWinProb: number },
+  lang: Lang = "en"
 ): MatchReport {
+  const ko = lang === "ko";
   const homeGoals = match.timeline.filter((e) => e.side === "home" && e.type === "goal");
   const homeInvolve = match.timeline.filter(
     (e) => e.side === "home" && (e.type === "goal" || e.type === "shot" || e.type === "chance")
@@ -62,18 +66,27 @@ export function buildReport(
     else if (stam < 50) score -= 0.15;
     score = Math.max(5.2, Math.min(10, score));
 
-    const note =
-      goals > 1
-        ? `${goals} goals — unplayable`
+    const note = ko
+      ? goals > 1
+        ? `${goals}골 — 압도적`
         : goals === 1
-        ? "On the scoresheet"
+        ? "득점 성공"
         : involve >= 2
-        ? "Kept creating"
+        ? "꾸준히 기회 창출"
         : stam < 40
-        ? "Ran himself into the ground"
-        : "Solid shift";
+        ? "체력을 쏟아부었다"
+        : "안정적인 활약"
+      : goals > 1
+      ? `${goals} goals — unplayable`
+      : goals === 1
+      ? "On the scoresheet"
+      : involve >= 2
+      ? "Kept creating"
+      : stam < 40
+      ? "Ran himself into the ground"
+      : "Solid shift";
 
-    return { id: p.id, name: p.name, num: p.num, role: p.role, rating: round1(score), goals, note };
+    return { id: p.id, name: displayName(lang, p.name, p.nameKo), num: p.num, role: p.role, rating: round1(score), goals, note };
   });
 
   const motm = [...ratings].sort((a, b) => b.rating - a.rating || b.goals - a.goals)[0];
@@ -101,31 +114,56 @@ export function buildReport(
       ? "C"
       : "D";
 
-  const homeName = match.home.name;
-  const oppName = match.away.name;
-  const resultWord = won ? "beat" : drew ? "drew with" : "fell to";
+  const homeName = ko ? match.home.nameKo : match.home.name;
+  const oppName = ko ? match.away.nameKo : match.away.name;
   const realChanged =
     alt.score[0] !== match.finalScore[0] || alt.score[1] !== match.finalScore[1];
+  const realStr = `${match.finalScore[0]}–${match.finalScore[1]}`;
 
-  const verdict =
-    `Grade ${grade}. Directing ${homeName}, ${coachName} ${resultWord} ${oppName} ${ug}–${og} ` +
-    `on a projected ${alt.homeWinProb}% win probability. ` +
-    (realChanged
-      ? `That rewrites the real ${match.finalScore[0]}–${match.finalScore[1]} — history bent to your tactics.`
-      : `The scoreline mirrors reality, but the process behind it was all yours.`) +
-    ` ${motm.name} was the difference-maker.`;
+  let verdict: string;
+  let headlines: string[];
 
-  const headlines = [
-    won
-      ? `${coachName.toUpperCase()}'S ${homeName.toUpperCase()} CONQUER THE WORLD`
-      : drew
-      ? `${homeName.toUpperCase()} DIG IN AS ${coachName.toUpperCase()} EARNS A POINT ON THE BIGGEST STAGE`
-      : `HEARTBREAK FOR ${coachName.toUpperCase()} AS ${oppName.toUpperCase()} EDGE THE FINAL`,
-    `${motm.name} runs the show — ${motm.rating.toFixed(1)}/10 and the Man of the Match award`,
-    realChanged
-      ? `Butterfly effect: bold tactics turn the ${match.finalScore[0]}–${match.finalScore[1]} on its head`
-      : `Same result, new legend: ${coachName} controls the final his own way`,
-  ];
+  if (ko) {
+    const resultWord = won ? "이기고" : drew ? "비기며" : "패해";
+    verdict =
+      `등급 ${grade}. ${homeName}을(를) 이끈 ${coachName} 감독은 ${oppName}을(를) 상대로 ${ug}–${og}으로 ${resultWord} ` +
+      `예상 승률 ${alt.homeWinProb}%를 기록했다. ` +
+      (realChanged
+        ? `이는 실제 결과 ${realStr}을(를) 뒤집은 것이다 — 당신의 전술이 역사를 바꿨다.`
+        : `스코어는 실제와 같지만, 그 과정은 온전히 당신의 것이었다.`) +
+      ` ${motm.name}이(가) 승부를 갈랐다.`;
+    headlines = [
+      won
+        ? `${coachName} 감독의 ${homeName}, 세계를 놀라게 하다`
+        : drew
+        ? `${homeName}, 값진 승점 1점 — ${coachName} 감독의 뚝심`
+        : `${coachName} 감독의 아쉬움 — ${oppName}에 석패`,
+      `${motm.name} 원맨쇼 — 평점 ${motm.rating.toFixed(1)}, MOTM 선정`,
+      realChanged
+        ? `나비효과: 과감한 전술이 ${realStr}을 뒤집다`
+        : `같은 결과, 새로운 전설: ${coachName}만의 방식으로 경기를 지배`,
+    ];
+  } else {
+    const resultWord = won ? "beat" : drew ? "drew with" : "fell to";
+    verdict =
+      `Grade ${grade}. Directing ${homeName}, ${coachName} ${resultWord} ${oppName} ${ug}–${og} ` +
+      `on a projected ${alt.homeWinProb}% win probability. ` +
+      (realChanged
+        ? `That rewrites the real ${realStr} — history bent to your tactics.`
+        : `The scoreline mirrors reality, but the process behind it was all yours.`) +
+      ` ${motm.name} was the difference-maker.`;
+    headlines = [
+      won
+        ? `${coachName.toUpperCase()}'S ${homeName.toUpperCase()} STUN THE WORLD`
+        : drew
+        ? `${homeName.toUpperCase()} DIG IN AS ${coachName.toUpperCase()} EARNS A POINT ON THE BIGGEST STAGE`
+        : `HEARTBREAK FOR ${coachName.toUpperCase()} AS ${oppName.toUpperCase()} EDGE IT`,
+      `${motm.name} runs the show — ${motm.rating.toFixed(1)}/10 and the Man of the Match award`,
+      realChanged
+        ? `Butterfly effect: bold tactics turn the ${realStr} on its head`
+        : `Same result, new legend: ${coachName} controls the game his own way`,
+    ];
+  }
 
   return { ratings, motm, grade, gradeScore: Math.round(gradeScore), verdict, headlines };
 }

@@ -1,10 +1,19 @@
-# ⚽ World Cup Director AI
+# ⚽ World Cup Director AI · 월드컵 디렉터 AI
 
-> *What if YOU were the coach?* — an immersive World Cup tactical simulator built on **real final data**.
+> *당신이 감독이라면?* — **2026 월드컵**을 다시 쓰는 몰입형 전술 시뮬레이터.
+> *What if YOU were the coach?* — an immersive World Cup tactical simulator.
 
-Hackathon entry for the *World Cup Manager / Tactics Web Challenge*. Replay real World Cup
-finals minute-by-minute, command an interactive tactical board, get live AI coaching, and
-rewrite history.
+2026 월드컵 데이터 기반 해커톤 출품작. 경기를 분 단위로 리플레이하고, 인터랙티브 전술 보드를
+지휘하고, 실시간 AI 코칭을 받아 **역사를 다시 쓴다.** UI 전체가 **한국어/영어** (기본 한국어).
+
+### 🇰🇷 한국 대표팀 & 2026 시나리오
+기본 데모는 **대한민국 vs 남아프리카공화국 (2026 조별리그)**. 실제 대회에서 한국은 피파 랭킹이
+낮은 상대에게 1–2로 패해 32강 진출이 좌절됐다 — 이제 **당신이 감독이 되어 그 경기를 다시 쓴다.**
+전술을 조정하면 대체역사(Alternate History) 스코어라인이 실시간으로 바뀐다.
+
+> ⚠️ **데이터 고지**: 2026 경기 데이터는 **시나리오(가상) 데이터**로, 실측 결과가 아니며 앱 내
+> `시나리오 데이터` 태그로 명시된다. 2018/2022 결승은 실측 이벤트 기반(`실측 데이터`).
+> 대회에서 실제 2026 데이터셋을 제공하면 StatsBomb 스키마로 그대로 교체 가능.
 
 ## Stack
 **Next.js 14 (App Router) · TypeScript · TailwindCSS · Framer Motion · Zustand**
@@ -61,6 +70,8 @@ Toggle **🔊 Sound** any time for crowd ambience + goal roars.
 - ✅ ~~Post-match report (ratings, MOTM, grade) with shareable image export~~
 - ✅ ~~AI press conference → generated headlines~~
 - ✅ ~~Procedural Web Audio crowd ambience + goal roar~~
+- ✅ ~~한국 대표팀 + 2026 시나리오(한국 vs 남아공) & 대체역사 훅~~
+- ✅ ~~한국어/영어 전체 현지화 (UI·AI 코치·헤드라인·중계, 기본 한국어)~~
 - Heatmaps & pass-network visualisations in the post-match report
 - Full StatsBomb loader + more matches/eras (Women's World Cup, older finals)
 - Fan reactions / social-post generation from the match narrative

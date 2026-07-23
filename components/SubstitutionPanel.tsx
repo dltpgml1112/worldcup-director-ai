@@ -4,6 +4,7 @@ import { useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { playerStamina, staminaTone } from "@/lib/stamina";
+import { t, displayName } from "@/lib/i18n";
 
 const MAX_SUBS = 5;
 
@@ -14,6 +15,7 @@ export default function SubstitutionPanel() {
   const minute = useGame((s) => s.minute);
   const subsUsed = useGame((s) => s.subsUsed);
   const makeSub = useGame((s) => s.makeSub);
+  const lang = useGame((s) => s.lang);
   const [selected, setSelected] = useState<string | null>(null);
 
   const outOfSubs = subsUsed >= MAX_SUBS;
@@ -28,9 +30,9 @@ export default function SubstitutionPanel() {
   return (
     <div className="glass rounded-2xl p-4">
       <div className="mb-3 flex items-center justify-between">
-        <span className="text-xs font-semibold uppercase tracking-widest text-white/50">Substitutions & Stamina</span>
+        <span className="text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "sub.title")}</span>
         <span className={`chip ${outOfSubs ? "bg-white/5 text-white/40" : "bg-neon-grass/15 text-neon-grass"}`}>
-          {subsUsed}/{MAX_SUBS} used
+          {subsUsed}/{MAX_SUBS} {t(lang, "sub.used")}
         </span>
       </div>
 
@@ -51,7 +53,7 @@ export default function SubstitutionPanel() {
             >
               <span className="w-6 shrink-0 text-center font-display text-xs font-bold tabular-nums text-white/60">{p.num}</span>
               <span className="w-8 shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/40">{p.role}</span>
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{p.name}</span>
+              <span className="min-w-0 flex-1 truncate text-sm font-semibold">{displayName(lang, p.name, p.nameKo)}</span>
               <span className="flex w-24 shrink-0 items-center gap-1.5">
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">
                   <span className="block h-full rounded-full" style={{ width: `${s}%`, background: tone.color }} />
@@ -75,11 +77,11 @@ export default function SubstitutionPanel() {
             className="mt-3 overflow-hidden"
           >
             <div className="mb-2 text-[11px] text-white/50">
-              Replace <span className="font-bold text-neon-red">{selectedPlayer.name}</span> — pick from the bench:
+              {t(lang, "sub.replace")} <span className="font-bold text-neon-red">{displayName(lang, selectedPlayer.name, selectedPlayer.nameKo)}</span> — {t(lang, "sub.pick")}
             </div>
             {bench.length === 0 ? (
               <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/40">
-                Bench empty.
+                {t(lang, "sub.benchEmpty")}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-1.5">
@@ -91,9 +93,9 @@ export default function SubstitutionPanel() {
                   >
                     <span className="w-6 shrink-0 text-center font-display text-xs font-bold tabular-nums text-white/60">{b.num}</span>
                     <span className="w-8 shrink-0 text-[10px] font-bold uppercase tracking-wide text-white/40">{b.role}</span>
-                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{b.name}</span>
-                    <span className="chip bg-white/5 text-[10px] text-neon-grass">{b.rating} OVR</span>
-                    <span className="text-xs text-neon-grass">↑ ON</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-semibold">{displayName(lang, b.name, b.nameKo)}</span>
+                    <span className="chip bg-white/5 text-[10px] text-neon-grass">{b.rating} {t(lang, "sub.ovr")}</span>
+                    <span className="text-xs text-neon-grass">{t(lang, "sub.on")}</span>
                   </button>
                 ))}
               </div>
@@ -104,7 +106,7 @@ export default function SubstitutionPanel() {
 
       {outOfSubs && (
         <div className="mt-3 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-center text-xs text-white/40">
-          All {MAX_SUBS} substitutions used.
+          {t(lang, "sub.allUsed")}
         </div>
       )}
     </div>

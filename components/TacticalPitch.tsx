@@ -4,6 +4,7 @@ import { useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
+import { t } from "@/lib/i18n";
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
@@ -13,6 +14,7 @@ export default function TacticalPitch() {
   const players = useGame((s) => s.players);
   const setPlayerPos = useGame((s) => s.setPlayerPos);
   const matchId = useGame((s) => s.matchId);
+  const lang = useGame((s) => s.lang);
   const home = getMatch(matchId)?.home;
   const ref = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<string | null>(null);
@@ -57,7 +59,7 @@ export default function TacticalPitch() {
 
       {/* 공격 방향 */}
       <div className="pointer-events-none absolute left-1/2 top-2 -translate-x-1/2 text-[10px] font-semibold uppercase tracking-widest text-white/60">
-        ▲ Attacking
+        {t(lang, "board.attacking")}
       </div>
 
       {/* 선수 토큰 */}
@@ -82,7 +84,7 @@ export default function TacticalPitch() {
             {p.num}
           </span>
           <span className="mt-0.5 max-w-[64px] truncate rounded bg-black/60 px-1 text-[9px] font-semibold leading-tight text-white">
-            {p.name.split(" ").pop()}
+            {lang === "ko" && p.nameKo ? p.nameKo : p.name.split(" ").pop()}
           </span>
         </motion.button>
       ))}

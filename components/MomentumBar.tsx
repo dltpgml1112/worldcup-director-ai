@@ -1,15 +1,18 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { useGame } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 /** -100(away) ~ +100(home) 모멘텀을 중앙 기준 바로 표현 */
 export default function MomentumBar({ momentum, homeCode, awayCode }: { momentum: number; homeCode: string; awayCode: string }) {
+  const lang = useGame((s) => s.lang);
   const pct = (momentum + 100) / 2; // 0-100
   return (
     <div className="glass rounded-2xl p-4">
       <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-white/50">
         <span>{homeCode}</span>
-        <span>Momentum</span>
+        <span>{t(lang, "stats.momentum")}</span>
         <span>{awayCode}</span>
       </div>
       <div className="relative h-3 rounded-full bg-gradient-to-r from-neon-grass/25 via-white/10 to-neon-red/25">

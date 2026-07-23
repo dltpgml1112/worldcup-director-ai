@@ -3,6 +3,7 @@ export type Side = "home" | "away";
 export interface Team {
   id: string;
   name: string;
+  nameKo: string;
   code: string; // 3-letter
   flag: string; // emoji
   primary: string;
@@ -12,6 +13,7 @@ export interface Team {
 export interface Player {
   id: string;
   name: string;
+  nameKo?: string;
   num: number;
   role: string; // GK, CB, LB, CM, RW ...
   x: number; // 0-100 (pitch width)
@@ -37,6 +39,7 @@ export interface MatchEvent {
   type: EventType;
   player?: string;
   detail: string;
+  detailKo?: string;
   xg?: number;
 }
 
@@ -67,5 +70,7 @@ export interface MatchData {
   finalScore: [number, number]; // regulation/ET
   penalties?: [number, number];
   realNarrative: string;
+  realNarrativeKo?: string;
   weakFlank: "left" | "right"; // opponent's vulnerable side (for AI coach demo)
+  dataSource?: "real" | "scenario"; // 'scenario' = 실측 아님(가상 시나리오)
 }

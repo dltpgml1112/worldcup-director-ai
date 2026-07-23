@@ -2,6 +2,8 @@
 
 import { AnimatePresence, motion } from "framer-motion";
 import type { MatchData, MatchEvent } from "@/lib/types";
+import { useGame } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 const ICON: Record<MatchEvent["type"], string> = {
   goal: "⚽",
@@ -15,10 +17,11 @@ const ICON: Record<MatchEvent["type"], string> = {
 };
 
 export default function EventFeed({ match, minute }: { match: MatchData; minute: number }) {
+  const lang = useGame((s) => s.lang);
   const events = match.timeline.filter((e) => e.minute <= minute).slice().reverse();
   return (
     <div className="glass rounded-2xl p-4">
-      <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/50">Live Commentary</div>
+      <div className="mb-3 text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "feed.title")}</div>
       <div className="max-h-[46vh] space-y-2 overflow-y-auto pr-1">
         <AnimatePresence initial={false}>
           {events.map((e) => {
@@ -43,9 +46,11 @@ export default function EventFeed({ match, minute }: { match: MatchData; minute:
                     <span className="text-[11px] font-bold uppercase tracking-wide" style={{ color: team.primary }}>
                       {team.code}
                     </span>
-                    {isGoal && <span className="chip bg-neon-gold/20 text-neon-gold">GOAL</span>}
+                    {isGoal && <span className="chip bg-neon-gold/20 text-neon-gold">{t(lang, "feed.goal")}</span>}
                   </div>
-                  <p className={`text-sm ${isGoal ? "font-semibold text-white" : "text-white/80"}`}>{e.detail}</p>
+                  <p className={`text-sm ${isGoal ? "font-semibold text-white" : "text-white/80"}`}>
+                    {lang === "ko" && e.detailKo ? e.detailKo : e.detail}
+                  </p>
                 </div>
               </motion.div>
             );

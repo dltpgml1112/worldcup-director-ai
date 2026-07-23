@@ -2,9 +2,12 @@
 
 import type { MatchData, Tactics } from "@/lib/types";
 import { winProbCurve } from "@/lib/matchEngine";
+import { useGame } from "@/lib/store";
+import { t } from "@/lib/i18n";
 
 /** ESPN식 실시간 승리확률 곡선 (SVG) */
 export default function WinProbChart({ match, tactics, minute }: { match: MatchData; tactics: Tactics; minute: number }) {
+  const lang = useGame((s) => s.lang);
   const curve = winProbCurve(match, tactics);
   const end = curve[curve.length - 1]?.minute || 90;
   const W = 320,
@@ -19,7 +22,7 @@ export default function WinProbChart({ match, tactics, minute }: { match: MatchD
   return (
     <div className="glass rounded-2xl p-4">
       <div className="mb-2 flex items-center justify-between text-xs font-semibold uppercase tracking-widest text-white/50">
-        <span>Live Win Probability</span>
+        <span>{t(lang, "stats.winprob")}</span>
         <span style={{ color: match.home.primary }}>{match.home.code}</span>
       </div>
       <svg viewBox={`0 0 ${W} ${H}`} className="h-24 w-full">

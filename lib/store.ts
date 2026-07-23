@@ -1,14 +1,19 @@
 import { create } from "zustand";
 import type { FormationKey, Player, Tactics } from "./types";
+import type { Lang } from "./i18n";
 import { DEFAULT_TACTICS } from "./matchEngine";
 import { applyFormation } from "./formations";
 import { getMatch } from "@/data/matches";
 
+const DEFAULT_MATCH = "kor-rsa-2026";
+
 export interface SubLogEntry {
   minute: number;
   offName: string;
+  offNameKo?: string;
   offNum: number;
   onName: string;
+  onNameKo?: string;
   onNum: number;
 }
 
@@ -25,7 +30,9 @@ interface GameState {
   playing: boolean;
   speed: number; // 분/초
   sound: boolean;
+  lang: Lang;
 
+  setLang: (l: Lang) => void;
   setup: (p: { coachName: string; matchId: string }) => void;
   setFormation: (f: FormationKey) => void;
   setTactic: <K extends keyof Tactics>(k: K, v: Tactics[K]) => void;
@@ -45,17 +52,20 @@ const MAX_SUBS = 5;
 
 export const useGame = create<GameState>((set, get) => ({
   coachName: "",
-  matchId: "final-2022",
+  matchId: DEFAULT_MATCH,
   formation: "433",
   tactics: { ...DEFAULT_TACTICS },
-  players: getMatch("final-2022")?.homeXI ?? [],
-  bench: getMatch("final-2022")?.homeBench ?? [],
+  players: getMatch(DEFAULT_MATCH)?.homeXI ?? [],
+  bench: getMatch(DEFAULT_MATCH)?.homeBench ?? [],
   subsUsed: 0,
   subLog: [],
   minute: 0,
   playing: false,
   speed: 6,
   sound: false,
+  lang: "ko",
+
+  setLang: (lang) => set({ lang }),
 
   setup: ({ coachName, matchId }) => {
     const match = getMatch(matchId);
@@ -95,7 +105,15 @@ export const useGame = create<GameState>((set, get) => ({
         subsUsed: s.subsUsed + 1,
         subLog: [
           ...s.subLog,
-          { minute: s.minute, offName: off.name, offNum: off.num, onName: on.name, onNum: on.num },
+          {
+            minute: s.minute,
+            offName: off.name,
+            offNameKo: off.nameKo,
+            offNum: off.num,
+            onName: on.name,
+            onNameKo: on.nameKo,
+            onNum: on.num,
+          },
         ],
       };
     }),

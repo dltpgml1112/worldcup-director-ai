@@ -8,18 +8,21 @@ import { FORMATIONS, type Slot } from "@/lib/formations";
  */
 
 const T = {
-  ARG: { id: "ARG", name: "Argentina", code: "ARG", flag: "🇦🇷", primary: "#75AADB", secondary: "#ffffff" },
-  FRA: { id: "FRA", name: "France", code: "FRA", flag: "🇫🇷", primary: "#1e3a8a", secondary: "#ef4444" },
-  CRO: { id: "CRO", name: "Croatia", code: "CRO", flag: "🇭🇷", primary: "#e11d48", secondary: "#1d4ed8" },
+  KOR: { id: "KOR", name: "South Korea", nameKo: "대한민국", code: "KOR", flag: "🇰🇷", primary: "#c8102e", secondary: "#0a3161" },
+  RSA: { id: "RSA", name: "South Africa", nameKo: "남아프리카공화국", code: "RSA", flag: "🇿🇦", primary: "#007749", secondary: "#ffb612" },
+  ARG: { id: "ARG", name: "Argentina", nameKo: "아르헨티나", code: "ARG", flag: "🇦🇷", primary: "#75AADB", secondary: "#ffffff" },
+  FRA: { id: "FRA", name: "France", nameKo: "프랑스", code: "FRA", flag: "🇫🇷", primary: "#1e3a8a", secondary: "#ef4444" },
+  CRO: { id: "CRO", name: "Croatia", nameKo: "크로아티아", code: "CRO", flag: "🇭🇷", primary: "#e11d48", secondary: "#1d4ed8" },
 } satisfies Record<string, Team>;
 
-interface Seed { name: string; num: number; rating: number }
+interface Seed { name: string; nameKo?: string; num: number; rating: number }
 
 function buildXI(seeds: Seed[], formation: keyof typeof FORMATIONS): Player[] {
   const slots: Slot[] = FORMATIONS[formation];
   return seeds.map((s, i) => ({
     id: `${formation}-${i}-${s.num}`,
     name: s.name,
+    nameKo: s.nameKo,
     num: s.num,
     role: slots[i]?.role ?? "SUB",
     x: slots[i]?.x ?? 50,
@@ -36,6 +39,7 @@ function buildBench(prefix: string, seeds: BenchSeed[]): Player[] {
   return seeds.map((s, i) => ({
     id: `bench-${prefix}-${i}-${s.num}`,
     name: s.name,
+    nameKo: s.nameKo,
     num: s.num,
     role: s.role,
     x: 50,
@@ -45,6 +49,50 @@ function buildBench(prefix: string, seeds: BenchSeed[]): Player[] {
     onAt: 0,
   }));
 }
+
+const KOR_2026 = buildXI(
+  [
+    { name: "Jo Hyeon-woo", nameKo: "조현우", num: 21, rating: 80 },
+    { name: "Kim Jin-su", nameKo: "김진수", num: 3, rating: 77 },
+    { name: "Kim Min-jae", nameKo: "김민재", num: 4, rating: 87 },
+    { name: "Kim Young-gwon", nameKo: "김영권", num: 19, rating: 78 },
+    { name: "Seol Young-woo", nameKo: "설영우", num: 15, rating: 78 },
+    { name: "Hwang In-beom", nameKo: "황인범", num: 6, rating: 81 },
+    { name: "Lee Jae-sung", nameKo: "이재성", num: 17, rating: 80 },
+    { name: "Lee Kang-in", nameKo: "이강인", num: 18, rating: 84 },
+    { name: "Son Heung-min", nameKo: "손흥민", num: 7, rating: 89 },
+    { name: "Cho Gue-sung", nameKo: "조규성", num: 9, rating: 78 },
+    { name: "Hwang Hee-chan", nameKo: "황희찬", num: 11, rating: 82 },
+  ],
+  "433"
+);
+
+const KOR_2026_BENCH = buildBench("kor26", [
+  { name: "Oh Hyeon-gyu", nameKo: "오현규", num: 22, role: "ST", rating: 78 },
+  { name: "Bae Jun-ho", nameKo: "배준호", num: 10, role: "AM", rating: 78 },
+  { name: "Won Du-jae", nameKo: "원두재", num: 8, role: "DM", rating: 76 },
+  { name: "Kim Moon-hwan", nameKo: "김문환", num: 2, role: "RB", rating: 75 },
+  { name: "Kim Ju-sung", nameKo: "김주성", num: 20, role: "CB", rating: 76 },
+  { name: "Jung Woo-yeong", nameKo: "정우영", num: 16, role: "CM", rating: 77 },
+  { name: "Song Bum-keun", nameKo: "송범근", num: 1, role: "GK", rating: 77 },
+]);
+
+const RSA_2026 = buildXI(
+  [
+    { name: "Ronwen Williams", num: 1, rating: 79 },
+    { name: "Khuliso Mudau", num: 22, rating: 74 },
+    { name: "Nkosinathi Sibisi", num: 5, rating: 73 },
+    { name: "Grant Kekana", num: 4, rating: 73 },
+    { name: "Aubrey Modiba", num: 3, rating: 75 },
+    { name: "Teboho Mokoena", num: 8, rating: 77 },
+    { name: "Sphephelo Sithole", num: 15, rating: 73 },
+    { name: "Themba Zwane", num: 10, rating: 78 },
+    { name: "Percy Tau", num: 21, rating: 79 },
+    { name: "Lyle Foster", num: 9, rating: 77 },
+    { name: "Evidence Makgopa", num: 11, rating: 73 },
+  ],
+  "433"
+);
 
 const ARG_2022_BENCH = buildBench("arg22", [
   { name: "L. Martínez", num: 22, role: "ST", rating: 84 },
@@ -136,6 +184,39 @@ const CRO_2018 = buildXI(
 
 export const MATCHES: MatchData[] = [
   {
+    id: "kor-rsa-2026",
+    year: 2026,
+    stage: "Group Stage",
+    venue: "2026 FIFA World Cup",
+    home: T.KOR,
+    away: T.RSA,
+    homeXI: KOR_2026,
+    awayXI: RSA_2026,
+    homeBench: KOR_2026_BENCH,
+    finalScore: [1, 2],
+    weakFlank: "right",
+    dataSource: "scenario",
+    realNarrative:
+      "In the real campaign, Korea dominated the ball but couldn't break down a disciplined South Africa. A first-half counter and a second-half set-piece punished defensive lapses; Son Heung-min's equaliser wasn't enough. The 1–2 defeat to a lower-ranked side ended Korea's group-stage hopes before the Round of 32.",
+    realNarrativeKo:
+      "실제 대회에서 대한민국은 점유율을 지배하고도 남아공의 밀집 수비를 끝내 뚫지 못했다. 전반 역습과 후반 세트피스에서 수비 실수로 실점했고, 손흥민의 동점골도 승부를 뒤집지 못했다. 피파 랭킹이 낮은 상대에게 당한 1-2 패배로 조별리그에서 탈락, 32강 진출이 좌절됐다. — 이제 당신이 감독이다. 다시 써라.",
+    timeline: [
+      { minute: 6, side: "home", type: "chance", player: "Son", detail: "Son Heung-min drives at the RSA back line early", detailKo: "손흥민이 초반부터 남아공 수비를 흔든다" },
+      { minute: 14, side: "home", type: "shot", player: "Lee Kang-in", detail: "Lee Kang-in curls one just wide", detailKo: "이강인의 감아차기, 골문을 살짝 벗어난다", xg: 0.06 },
+      { minute: 23, side: "away", type: "goal", player: "Foster", detail: "Against the run of play — Foster finishes a counter, 0–1", detailKo: "흐름과 반대로 — 포스터가 역습을 마무리, 0-1", xg: 0.18 },
+      { minute: 31, side: "home", type: "chance", player: "Cho Gue-sung", detail: "Cho Gue-sung heads over from the corner", detailKo: "조규성의 헤더, 코너킥 상황에서 크로스바를 넘긴다" },
+      { minute: 39, side: "home", type: "shot", player: "Hwang Hee-chan", detail: "Hwang Hee-chan stings the keeper's palms", detailKo: "황희찬의 슈팅, 골키퍼가 쳐낸다", xg: 0.09 },
+      { minute: 45, side: "home", type: "whistle", detail: "Half time — Korea 0–1 down despite controlling the ball", detailKo: "전반 종료 — 점유율 우위에도 0-1로 끌려간다" },
+      { minute: 52, side: "home", type: "goal", player: "Son", detail: "Son Heung-min lashes in the equaliser — 1–1!", detailKo: "손흥민이 동점골을 터뜨린다 — 1-1!", xg: 0.24 },
+      { minute: 58, side: "home", type: "chance", player: "Lee Kang-in", detail: "Lee Kang-in threads Cho in, blocked", detailKo: "이강인이 조규성에게 스루패스, 막힌다" },
+      { minute: 67, side: "away", type: "goal", player: "Tau", detail: "Set-piece scramble, Tau pounces — 1–2", detailKo: "세트피스 혼전, 타우가 밀어넣는다 — 1-2", xg: 0.16 },
+      { minute: 74, side: "home", type: "shot", player: "Cho Gue-sung", detail: "Cho Gue-sung forces a fine save", detailKo: "조규성의 슈팅, 선방에 막힌다", xg: 0.1 },
+      { minute: 80, side: "home", type: "chance", player: "Oh Hyeon-gyu", detail: "Fresh legs — Oh Hyeon-gyu can't quite connect", detailKo: "교체 투입 오현규, 마무리가 아쉽다" },
+      { minute: 88, side: "home", type: "shot", player: "Son", detail: "Son's late free-kick tipped over", detailKo: "손흥민의 후반 프리킥, 골키퍼가 넘긴다", xg: 0.12 },
+      { minute: 90, side: "home", type: "whistle", detail: "Full time — Korea 1–2 South Africa, eliminated", detailKo: "경기 종료 — 대한민국 1-2 남아공, 조별리그 탈락" },
+    ],
+  },
+  {
     id: "final-2022",
     year: 2022,
     stage: "Final",
@@ -148,6 +229,9 @@ export const MATCHES: MatchData[] = [
     finalScore: [3, 3],
     penalties: [4, 2],
     weakFlank: "left",
+    dataSource: "real",
+    realNarrativeKo:
+      "아르헨티나는 메시의 페널티킥과 디마리아의 역습골로 2-0으로 앞섰지만, 음바페가 97초 만에 두 골을 몰아쳤다. 연장에서 메시가 다시 앞서갔고 음바페가 페널티로 해트트릭을 완성. 승부차기 끝에 아르헨티나가 우승했다.",
     realNarrative:
       "Argentina raced to a 2–0 lead through a Messi penalty and a flowing Di María counter, only for Mbappé to strike twice in 97 seconds. Messi restored the lead in extra time; Mbappé completed his hat-trick from the spot. Argentina won on penalties.",
     timeline: [
@@ -185,6 +269,9 @@ export const MATCHES: MatchData[] = [
     homeBench: FRA_2018_BENCH,
     finalScore: [4, 2],
     weakFlank: "right",
+    dataSource: "real",
+    realNarrativeKo:
+      "크로아티아가 점유율을 지배했지만 프랑스는 효율적이었다. 자책골과 VAR 페널티로 전반에 앞서갔고, 후반 포그바와 음바페의 득점으로 승부를 갈랐다. 만주키치의 만회골에도 4-2로 프랑스가 우승했다.",
     realNarrative:
       "Croatia dominated possession but France were ruthless. An own goal and a VAR penalty put France ahead by the break; second-half strikes from Pogba and Mbappé settled it despite a Mandžukić gift late on.",
     timeline: [
@@ -218,5 +305,5 @@ export function findMatch(countryId: string, opponentId: string, year: number): 
   );
 }
 
-export const COUNTRIES: Team[] = [T.ARG, T.FRA, T.CRO];
-export const YEARS: number[] = [2022, 2018];
+export const COUNTRIES: Team[] = [T.KOR, T.RSA, T.ARG, T.FRA, T.CRO];
+export const YEARS: number[] = [2026, 2022, 2018];
