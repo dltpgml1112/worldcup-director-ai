@@ -218,8 +218,13 @@ export default function MatchPage() {
         onClose={() => setReportOpen(false)}
       />
 
-      {/* 골 세리머니 (컨페티 + 방사형 플래시) — 2.6초 유지 */}
-      <GoalCelebration goal={celebration ?? undefined} minute={celebFor.current} lang={lang} />
+      {/* 골 세리머니 (컨페티 + 선수 실루엣 등장) — 2.6초 유지 */}
+      <GoalCelebration
+        goal={celebration ?? undefined}
+        minute={celebFor.current}
+        lang={lang}
+        accent={celebration?.side === "away" ? match.away.primary : match.home.primary}
+      />
 
       {/* 교체 투입 선수 카드 공개 (FUT 팩 오픈 느낌) */}
       <SubReveal lang={lang} flag={match.home.flag} />

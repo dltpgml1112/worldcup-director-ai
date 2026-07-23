@@ -23,14 +23,39 @@ function particles(seed: number) {
   });
 }
 
+/** 골 세리머니 선수 실루엣 (양팔 벌린 환호 포즈) */
+function CelebFigure({ color }: { color: string }) {
+  return (
+    <svg viewBox="0 0 100 150" className="h-40 w-28 drop-shadow-[0_8px_30px_rgba(0,0,0,0.5)] sm:h-52 sm:w-36" fill="none">
+      <g stroke={color} strokeWidth="11" strokeLinecap="round" strokeLinejoin="round">
+        {/* 양팔 (V자 환호) */}
+        <path d="M45 52 L20 22" />
+        <path d="M55 52 L80 22" />
+        {/* 다리 (달리기/점프) */}
+        <path d="M47 92 L34 138" />
+        <path d="M53 92 L70 130" />
+      </g>
+      {/* 몸통 */}
+      <rect x="40" y="48" width="20" height="48" rx="10" fill={color} />
+      {/* 머리 */}
+      <circle cx="50" cy="24" r="13" fill={color} />
+      {/* 등번호 느낌 하이라이트 */}
+      <circle cx="20" cy="22" r="6.5" fill={color} />
+      <circle cx="80" cy="22" r="6.5" fill={color} />
+    </svg>
+  );
+}
+
 export default function GoalCelebration({
   goal,
   minute,
   lang,
+  accent = "#42f59b",
 }: {
   goal: MatchEvent | undefined;
   minute: number;
   lang: Lang;
+  accent?: string;
 }) {
   return (
     <AnimatePresence>
@@ -65,24 +90,57 @@ export default function GoalCelebration({
             />
           ))}
 
-          {/* GOAL 텍스트 */}
-          <motion.div
-            initial={{ scale: 0.5, rotate: -8, y: 10 }}
-            animate={{ scale: 1, rotate: 0, y: 0 }}
-            transition={{ type: "spring", stiffness: 220, damping: 11 }}
-            className="relative text-center"
-          >
+          {/* 선수 실루엣 등장 + GOAL 텍스트 */}
+          <div className="relative flex flex-col items-center">
+            {/* 스포트라이트 */}
             <motion.div
-              animate={{ scale: [1, 1.06, 1] }}
-              transition={{ repeat: Infinity, duration: 0.7 }}
-              className="font-display text-7xl font-bold uppercase tracking-tight text-neon-gold drop-shadow-[0_0_40px_rgba(255,213,74,0.85)] sm:text-9xl"
+              initial={{ opacity: 0, scaleY: 0.3 }}
+              animate={{ opacity: 0.5, scaleY: 1 }}
+              transition={{ duration: 0.5 }}
+              className="absolute -top-4 h-56 w-64 origin-bottom"
+              style={{ background: `radial-gradient(ellipse at 50% 100%, ${accent}55 0%, transparent 70%)` }}
+            />
+
+            <motion.div
+              initial={{ scale: 0.5, rotate: -8, y: 10 }}
+              animate={{ scale: 1, rotate: 0, y: 0 }}
+              transition={{ type: "spring", stiffness: 220, damping: 11 }}
+              className="relative text-center"
             >
-              {lang === "ko" ? "골!" : "GOAL!"}
+              <motion.div
+                animate={{ scale: [1, 1.06, 1] }}
+                transition={{ repeat: Infinity, duration: 0.7 }}
+                className="font-display text-6xl font-bold uppercase tracking-tight text-neon-gold drop-shadow-[0_0_40px_rgba(255,213,74,0.85)] sm:text-8xl"
+              >
+                {lang === "ko" ? "골!" : "GOAL!"}
+              </motion.div>
             </motion.div>
-            <div className="mt-2 text-xl font-semibold text-white drop-shadow">
+
+            {/* 선수 등장 (아래에서 튀어오르며 등장) */}
+            <motion.div
+              initial={{ y: 140, opacity: 0, scale: 0.7 }}
+              animate={{ y: 0, opacity: 1, scale: 1 }}
+              transition={{ type: "spring", stiffness: 170, damping: 15, delay: 0.12 }}
+              className="relative -mt-2 flex flex-col items-center"
+            >
+              <CelebFigure color={accent} />
+              {goal.player && (
+                <motion.div
+                  initial={{ opacity: 0, y: 8 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: 0.35 }}
+                  className="-mt-2 rounded-full bg-black/60 px-4 py-1 font-display text-2xl font-bold text-white shadow-lg sm:text-3xl"
+                  style={{ boxShadow: `0 0 24px ${accent}66` }}
+                >
+                  ⚽ {goal.player}
+                </motion.div>
+              )}
+            </motion.div>
+
+            <div className="mt-2 max-w-md text-center text-base font-semibold text-white/90 drop-shadow sm:text-lg">
               {lang === "ko" && goal.detailKo ? goal.detailKo : goal.detail}
             </div>
-          </motion.div>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
