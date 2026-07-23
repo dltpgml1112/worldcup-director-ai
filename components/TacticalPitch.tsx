@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
@@ -10,6 +10,52 @@ import type { Player } from "@/lib/types";
 
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v));
+}
+
+/** 매 프레임 부드럽게 흐르는 공 — 기세로 상하 바이어스, 여러 사인파로 자연스러운 유동 */
+function Ball({ momentum, playing }: { momentum: number; playing: boolean }) {
+  const el = useRef<HTMLDivElement>(null);
+  const mRef = useRef(momentum);
+  const playRef = useRef(playing);
+  mRef.current = momentum;
+  playRef.current = playing;
+
+  useEffect(() => {
+    let raf = 0;
+    const start = performance.now();
+    const p = { x: 50, y: 50 };
+    const loop = (now: number) => {
+      const tt = (now - start) / 1000;
+      const play = playRef.current;
+      const m = mRef.current;
+      // 자연스러운 유동: 서로 다른 주기의 사인파 합성
+      const tx = 50 + Math.sin(tt * 0.45) * 20 + Math.sin(tt * 0.19 + 1.3) * 9;
+      const ty =
+        50 +
+        (play ? -m * 0.26 : 0) +
+        Math.sin(tt * 0.37 + 2.1) * 15 +
+        Math.cos(tt * 0.61) * 7;
+      const target = { x: clamp(tx, 12, 88), y: clamp(ty, 10, 90) };
+      const sp = play ? 0.05 : 0.022; // 느린 러프 → 급가속 없음
+      p.x += (target.x - p.x) * sp;
+      p.y += (target.y - p.y) * sp;
+      if (el.current) {
+        el.current.style.left = `${p.x}%`;
+        el.current.style.top = `${p.y}%`;
+      }
+      raf = requestAnimationFrame(loop);
+    };
+    raf = requestAnimationFrame(loop);
+    return () => cancelAnimationFrame(raf);
+  }, []);
+
+  return (
+    <div
+      ref={el}
+      className="pointer-events-none absolute z-[8] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+      style={{ left: "50%", top: "50%", backgroundImage: "radial-gradient(circle at 35% 30%, #fff 40%, #cbd5e1 100%)" }}
+    />
+  );
 }
 
 /** 재생 중 선수 드리프트(살아있는 움직임) — 결정론적, 분+인덱스 기반 */
@@ -40,22 +86,6 @@ export default function TacticalPitch() {
   const homeShift = clamp(momentum * 0.06, -7, 7);
   const awayShift = clamp(-momentum * 0.06, -7, 7);
   const live = playing && minute > 0;
-
-  // 공 위치 — 기세 + 최근 이벤트 기반 (홈 공격 시 상단, 실점 위기 시 하단)
-  const ball = (() => {
-    let top = 50 - momentum * 0.3;
-    let left = 50 + Math.sin(minute * 0.6) * 14;
-    const last = match ? [...match.timeline].reverse().find((e) => e.minute <= minute) : undefined;
-    if (last) {
-      const homeSide = last.side === "home";
-      if (["goal", "shot", "chance", "corner"].includes(last.type)) top += homeSide ? -14 : 14;
-      if (last.type === "goal") {
-        top = homeSide ? 8 : 92;
-        left = 50;
-      }
-    }
-    return { top: clamp(top, 6, 94), left: clamp(left, 10, 90) };
-  })();
 
   const toPct = (clientX: number, clientY: number) => {
     const r = ref.current!.getBoundingClientRect();
@@ -152,12 +182,7 @@ export default function TacticalPitch() {
       })}
 
       {/* 공 */}
-      <motion.div
-        className="pointer-events-none absolute z-[8] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)]"
-        animate={{ left: `${ball.left}%`, top: `${ball.top}%` }}
-        transition={{ type: "spring", stiffness: 120, damping: 18 }}
-        style={{ backgroundImage: "radial-gradient(circle at 35% 30%, #fff 40%, #cbd5e1 100%)" }}
-      />
+      <Ball momentum={momentum} playing={playing} />
 
       {/* 홈(우리) 선수 토큰 — 드래그 가능 */}
       {players.map((p, i) => {

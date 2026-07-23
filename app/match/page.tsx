@@ -8,7 +8,7 @@ import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate } from "@/lib/matchEngine";
 import { startCrowd, stopCrowd, setCrowdLevel, goalRoar } from "@/lib/audio";
 import { t, type Lang } from "@/lib/i18n";
-import type { Player } from "@/lib/types";
+import type { Player, MatchEvent } from "@/lib/types";
 import LangToggle from "@/components/LangToggle";
 import GoalCelebration from "@/components/GoalCelebration";
 import PlayerCard from "@/components/PlayerCard";
@@ -34,10 +34,13 @@ export default function MatchPage() {
   const sound = useGame((s) => s.sound);
   const setSound = useGame((s) => s.setSound);
   const lang = useGame((s) => s.lang);
-  const { togglePlay, setSpeed, tick, resetClock, setMinute } = useGame();
+  const { togglePlay, setSpeed, tick, resetClock, setMinute, play, pause } = useGame();
 
   const [reportOpen, setReportOpen] = useState(false);
   const reportShownFor = useRef<number>(-1);
+  const [celebration, setCelebration] = useState<MatchEvent | null>(null);
+  const celebFor = useRef<number>(-1);
+  const resumeAfterCeleb = useRef(false);
 
   const match = getMatch(matchId);
   const end = match?.timeline[match.timeline.length - 1]?.minute ?? 90;
@@ -56,11 +59,13 @@ export default function MatchPage() {
     return () => stopCrowd();
   }, [sound]);
 
-  // 전-경기 리셋 시 리포트 상태 초기화
+  // 전-경기 리셋 시 리포트/세리머니 상태 초기화
   useEffect(() => {
     if (minute === 0) {
       setReportOpen(false);
       reportShownFor.current = -1;
+      setCelebration(null);
+      celebFor.current = -1;
     }
   }, [minute]);
 
@@ -71,12 +76,24 @@ export default function MatchPage() {
     setCrowdLevel(Math.abs(s.momentum));
   }, [sound, match, minute, tactics]);
 
-  // 골 발생 시 함성
+  // 골 도달 시: 잠깐 정지 + 세리머니 2.6초 유지 후 재개 (빠른 배속에서도 확실히 보이게)
   useEffect(() => {
-    if (!match || !sound) return;
+    if (!match) return;
     const goal = match.timeline.find((e) => e.minute === minute && e.type === "goal");
-    if (goal) goalRoar();
-  }, [minute, match, sound]);
+    if (!goal || celebFor.current === minute) return;
+    celebFor.current = minute;
+    resumeAfterCeleb.current = playing;
+    setCelebration(goal);
+    if (playing) pause();
+    if (sound) goalRoar();
+    const id = setTimeout(() => {
+      setCelebration(null);
+      if (resumeAfterCeleb.current) play();
+    }, 2600);
+    return () => clearTimeout(id);
+    // playing/sound는 트리거 시점 값만 사용 — minute/match 변화에만 반응
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minute, match]);
 
   // 풀타임 도달 시 리포트 자동 오픈 (한 번만)
   useEffect(() => {
@@ -96,7 +113,6 @@ export default function MatchPage() {
 
   const snap = snapshotAt(match, minute, tactics);
   const alt = simulateAlternate(match, tactics);
-  const goalNow = match.timeline.find((e) => e.minute === minute && e.type === "goal");
 
   return (
     <main className="min-h-screen px-4 py-4 lg:px-6">
@@ -202,8 +218,8 @@ export default function MatchPage() {
         onClose={() => setReportOpen(false)}
       />
 
-      {/* 골 세리머니 (컨페티 + 방사형 플래시) */}
-      <GoalCelebration goal={goalNow} minute={minute} lang={lang} />
+      {/* 골 세리머니 (컨페티 + 방사형 플래시) — 2.6초 유지 */}
+      <GoalCelebration goal={celebration ?? undefined} minute={celebFor.current} lang={lang} />
 
       {/* 교체 투입 선수 카드 공개 (FUT 팩 오픈 느낌) */}
       <SubReveal lang={lang} flag={match.home.flag} />
