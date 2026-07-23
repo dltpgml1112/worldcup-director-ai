@@ -114,16 +114,23 @@ export default function TacticalPitch() {
         return (
           <motion.div
             key={`away-${p.id}`}
-            className="pointer-events-none absolute z-[5] flex h-7 w-7 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-full text-[10px] font-bold"
+            className="pointer-events-none absolute z-[5] flex -translate-x-1/2 -translate-y-1/2 flex-col items-center"
             animate={{ left: `${pos.left}%`, top: `${pos.top}%` }}
             transition={live ? { duration: 0.5, ease: "linear" } : { type: "spring", stiffness: 200, damping: 24 }}
-            style={{
-              background: "rgba(232,238,247,0.9)",
-              color: "#05070d",
-              border: `2px solid ${away?.primary ?? "#888"}`,
-            }}
           >
-            {p.num}
+            <span
+              className="flex h-7 w-7 items-center justify-center rounded-full text-[10px] font-bold"
+              style={{
+                background: "rgba(232,238,247,0.9)",
+                color: "#05070d",
+                border: `2px solid ${away?.primary ?? "#888"}`,
+              }}
+            >
+              {p.num}
+            </span>
+            <span className="mt-0.5 max-w-[60px] truncate rounded bg-black/50 px-1 text-[8px] font-semibold leading-tight text-white/85">
+              {lang === "ko" && p.nameKo ? p.nameKo : p.name.split(" ").pop()}
+            </span>
           </motion.div>
         );
       })}
