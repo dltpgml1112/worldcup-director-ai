@@ -41,6 +41,22 @@ export default function TacticalPitch() {
   const awayShift = clamp(-momentum * 0.06, -7, 7);
   const live = playing && minute > 0;
 
+  // 공 위치 — 기세 + 최근 이벤트 기반 (홈 공격 시 상단, 실점 위기 시 하단)
+  const ball = (() => {
+    let top = 50 - momentum * 0.3;
+    let left = 50 + Math.sin(minute * 0.6) * 14;
+    const last = match ? [...match.timeline].reverse().find((e) => e.minute <= minute) : undefined;
+    if (last) {
+      const homeSide = last.side === "home";
+      if (["goal", "shot", "chance", "corner"].includes(last.type)) top += homeSide ? -14 : 14;
+      if (last.type === "goal") {
+        top = homeSide ? 8 : 92;
+        left = 50;
+      }
+    }
+    return { top: clamp(top, 6, 94), left: clamp(left, 10, 90) };
+  })();
+
   const toPct = (clientX: number, clientY: number) => {
     const r = ref.current!.getBoundingClientRect();
     const px = clamp(((clientX - r.left) / r.width) * 100, 4, 96);
@@ -134,6 +150,14 @@ export default function TacticalPitch() {
           </motion.div>
         );
       })}
+
+      {/* 공 */}
+      <motion.div
+        className="pointer-events-none absolute z-[8] h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-white shadow-[0_0_10px_rgba(255,255,255,0.9)]"
+        animate={{ left: `${ball.left}%`, top: `${ball.top}%` }}
+        transition={{ type: "spring", stiffness: 120, damping: 18 }}
+        style={{ backgroundImage: "radial-gradient(circle at 35% 30%, #fff 40%, #cbd5e1 100%)" }}
+      />
 
       {/* 홈(우리) 선수 토큰 — 드래그 가능 */}
       {players.map((p, i) => {

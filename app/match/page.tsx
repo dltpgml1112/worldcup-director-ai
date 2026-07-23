@@ -8,7 +8,10 @@ import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate } from "@/lib/matchEngine";
 import { startCrowd, stopCrowd, setCrowdLevel, goalRoar } from "@/lib/audio";
 import { t, type Lang } from "@/lib/i18n";
+import type { Player } from "@/lib/types";
 import LangToggle from "@/components/LangToggle";
+import GoalCelebration from "@/components/GoalCelebration";
+import PlayerCard from "@/components/PlayerCard";
 import Scoreboard from "@/components/Scoreboard";
 import StatBars from "@/components/StatBars";
 import MomentumBar from "@/components/MomentumBar";
@@ -199,34 +202,61 @@ export default function MatchPage() {
         onClose={() => setReportOpen(false)}
       />
 
-      {/* 골 세리머니 오버레이 */}
-      <AnimatePresence>
-        {goalNow && (
-          <motion.div
-            key={`goal-${minute}`}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="pointer-events-none fixed inset-0 z-50 grid place-items-center"
-          >
-            <div className="absolute inset-0 bg-night-900/60" />
-            <motion.div
-              initial={{ scale: 0.6, rotate: -6 }}
-              animate={{ scale: 1, rotate: 0 }}
-              transition={{ type: "spring", stiffness: 200, damping: 12 }}
-              className="relative text-center"
-            >
-              <div className="font-display text-7xl font-bold uppercase tracking-tight text-neon-gold drop-shadow-[0_0_30px_rgba(255,213,74,0.7)] sm:text-9xl">
-                {lang === "ko" ? "골!" : "Goal!"}
-              </div>
-              <div className="mt-2 text-xl font-semibold text-white">
-                {lang === "ko" && goalNow.detailKo ? goalNow.detailKo : goalNow.detail}
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* 골 세리머니 (컨페티 + 방사형 플래시) */}
+      <GoalCelebration goal={goalNow} minute={minute} lang={lang} />
+
+      {/* 교체 투입 선수 카드 공개 (FUT 팩 오픈 느낌) */}
+      <SubReveal lang={lang} flag={match.home.flag} />
     </main>
+  );
+}
+
+/** 교체로 방금 투입된 선수의 FUT 카드를 잠깐 공개 */
+function SubReveal({ lang, flag }: { lang: Lang; flag: string }) {
+  const players = useGame((s) => s.players);
+  const subLog = useGame((s) => s.subLog);
+  const [reveal, setReveal] = useState<Player | null>(null);
+  const prevLen = useRef(subLog.length);
+
+  useEffect(() => {
+    if (subLog.length > prevLen.current) {
+      const last = subLog[subLog.length - 1];
+      const p = players.find((pl) => pl.num === last.onNum && pl.name === last.onName) ?? null;
+      if (p) {
+        setReveal(p);
+        const id = setTimeout(() => setReveal(null), 2800);
+        return () => clearTimeout(id);
+      }
+    }
+    prevLen.current = subLog.length;
+  }, [subLog, players]);
+
+  return (
+    <AnimatePresence>
+      {reveal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="pointer-events-none fixed inset-0 z-[55] grid place-items-center"
+          onClick={() => setReveal(null)}
+        >
+          <div className="absolute inset-0 bg-night-900/70" />
+          <motion.div
+            initial={{ scale: 0.6, rotateY: 90, opacity: 0 }}
+            animate={{ scale: 1, rotateY: 0, opacity: 1 }}
+            exit={{ scale: 0.8, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 180, damping: 16 }}
+            className="relative"
+          >
+            <div className="mb-2 text-center font-display text-sm font-bold uppercase tracking-widest text-neon-grass">
+              {lang === "ko" ? "🔁 교체 투입" : "🔁 SUBSTITUTION"}
+            </div>
+            <PlayerCard player={reveal} lang={lang} flag={flag} />
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
   );
 }
 

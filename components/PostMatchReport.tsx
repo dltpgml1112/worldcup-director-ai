@@ -7,6 +7,7 @@ import type { MatchSnapshot } from "@/lib/matchEngine";
 import { buildReport } from "@/lib/postMatch";
 import { useGame } from "@/lib/store";
 import { t } from "@/lib/i18n";
+import PlayerCard from "@/components/PlayerCard";
 
 export default function PostMatchReport({
   match,
@@ -36,6 +37,7 @@ export default function PostMatchReport({
     () => buildReport(match, players, snap, tactics, coachName, alt, lang),
     [match, players, snap, tactics, coachName, alt, lang]
   );
+  const motmPlayer = players.find((p) => p.id === report.motm.id);
 
   const summary =
     lang === "ko"
@@ -179,6 +181,20 @@ export default function PostMatchReport({
               </div>
               <p className="text-sm leading-relaxed text-white/80">{report.verdict}</p>
             </div>
+
+            {/* MOTM 카드 (FUT 스타일) */}
+            {motmPlayer && (
+              <div className="mt-5 flex items-center gap-4 rounded-2xl border border-neon-gold/30 bg-neon-gold/5 p-4">
+                <PlayerCard player={motmPlayer} lang={lang} flag={match.home.flag} compact />
+                <div className="min-w-0">
+                  <div className="text-[10px] font-bold uppercase tracking-widest text-neon-gold">★ {t(lang, "rep.motm")}</div>
+                  <div className="font-display text-2xl font-bold">{report.motm.name}</div>
+                  <div className="mt-1 text-sm text-white/60">
+                    {report.motm.note} · {report.motm.rating.toFixed(1)}/10
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="mt-5 grid gap-5 lg:grid-cols-2">
               {/* 선수 평점 */}
