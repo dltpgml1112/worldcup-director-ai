@@ -93,59 +93,64 @@ export function subRecommendations(
   if (subsUsed >= 5 || minute <= 0) return [];
   const chasing = snap.score[0] < snap.score[1];
 
-  const recs = players
+  // 1) 우선순위 점수 산출 (대체자 배정 전)
+  const ranked = players
     .filter((p) => p.role.toUpperCase() !== "GK")
-    .map<SubRecommendation>((p) => {
+    .map((p) => {
       const staminaNow = playerStamina(p, minute, tactics);
       const mins = minutesPlayed(p, minute);
       const crossAt = staminaCrossMinute(p, tactics);
-      const cand = bestReplacement(p, bench);
-      const gain = cand ? Math.round(100 - staminaNow) : 0;
-
-      // 점수: 낮은 체력 + 긴 출전 + 임계 근접
       let score = (100 - staminaNow) * 1.4 + mins * 0.35;
       if (crossAt !== null && minute >= crossAt) score += 25;
-      if (chasing && group(p.role) === "ATT") score += 8; // 추격 중엔 공격 자원 교체 가치↑
-      if (cand && cand.rating > p.rating) score += 6;
-
+      if (chasing && group(p.role) === "ATT") score += 8;
       const urgency: SubRecommendation["urgency"] =
         staminaNow < STAMINA_FLOOR - 8 ? "now" : staminaNow < STAMINA_FLOOR + 8 ? "soon" : "monitor";
-
-      const nm = displayName(lang, p.name, p.nameKo);
-      const cn = cand ? displayName(lang, cand.name, cand.nameKo) : null;
-      const reason = ko
-        ? [
-            `${mins}분 소화, 체력 ${Math.round(staminaNow)}%`,
-            crossAt !== null
-              ? minute >= crossAt
-                ? `${crossAt}분에 이미 ${STAMINA_FLOOR}% 아래로 진입`
-                : `${crossAt}분에 ${STAMINA_FLOOR}% 도달 예상`
-              : null,
-            cn ? `${cn} 투입 시 체력 +${gain}p 회복` : "벤치 자원 없음",
-            chasing && group(p.role) === "ATT" ? "추격 상황 — 전방 활력 필요" : null,
-          ]
-            .filter(Boolean)
-            .join(" · ")
-        : [
-            `${mins} min played, ${Math.round(staminaNow)}% stamina`,
-            crossAt !== null
-              ? minute >= crossAt
-                ? `dropped below ${STAMINA_FLOOR}% at ${crossAt}'`
-                : `hits ${STAMINA_FLOOR}% around ${crossAt}'`
-              : null,
-            cn ? `${cn} restores +${gain}p of freshness` : "no bench option",
-            chasing && group(p.role) === "ATT" ? "chasing — needs fresh legs up top" : null,
-          ]
-            .filter(Boolean)
-            .join(" · ");
-
-      return { off: p, on: cand, urgency, staminaNow, minutes: mins, crossAt, gain, reason, score };
+      return { p, staminaNow, mins, crossAt, score, urgency };
     })
     .sort((a, b) => b.score - a.score);
 
-  // 실질적으로 의미 있는 것만 (감시 단계는 최상위 1건만 노출)
-  const actionable = recs.filter((r) => r.urgency !== "monitor");
-  return (actionable.length ? actionable : recs.slice(0, 1)).slice(0, 3);
+  const actionable = ranked.filter((r) => r.urgency !== "monitor");
+  const shortlist = (actionable.length ? actionable : ranked.slice(0, 1)).slice(0, 3);
+
+  // 2) 대체자 중복 없이 배정 (같은 후보가 여러 카드에 나오지 않도록 풀에서 제거)
+  const pool = [...bench];
+  const out: SubRecommendation[] = shortlist.map((r) => {
+    const cand = bestReplacement(r.p, pool);
+    if (cand) pool.splice(pool.findIndex((b) => b.id === cand.id), 1);
+    const gain = cand ? Math.round(100 - r.staminaNow) : 0;
+    if (cand && cand.rating > r.p.rating) r.score += 6;
+
+    const cn = cand ? displayName(lang, cand.name, cand.nameKo) : null;
+    const reason = ko
+      ? [
+          `${r.mins}분 소화, 체력 ${Math.round(r.staminaNow)}%`,
+          r.crossAt !== null
+            ? minute >= r.crossAt
+              ? `${r.crossAt}분에 이미 ${STAMINA_FLOOR}% 아래로 진입`
+              : `${r.crossAt}분에 ${STAMINA_FLOOR}% 도달 예상`
+            : null,
+          cn ? `${cn} 투입 시 체력 +${gain}p 회복` : "벤치 자원 없음",
+          chasing && group(r.p.role) === "ATT" ? "추격 상황 — 전방 활력 필요" : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")
+      : [
+          `${r.mins} min played, ${Math.round(r.staminaNow)}% stamina`,
+          r.crossAt !== null
+            ? minute >= r.crossAt
+              ? `dropped below ${STAMINA_FLOOR}% at ${r.crossAt}'`
+              : `hits ${STAMINA_FLOOR}% around ${r.crossAt}'`
+            : null,
+          cn ? `${cn} restores +${gain}p of freshness` : "no bench option",
+          chasing && group(r.p.role) === "ATT" ? "chasing — needs fresh legs up top" : null,
+        ]
+          .filter(Boolean)
+          .join(" · ");
+
+    return { off: r.p, on: cand, urgency: r.urgency, staminaNow: r.staminaNow, minutes: r.mins, crossAt: r.crossAt, gain, reason, score: r.score };
+  });
+
+  return out;
 }
 
 /* ────────────────────────────── 팀 비교 ────────────────────────────── */

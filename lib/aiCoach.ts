@@ -10,6 +10,7 @@ export interface CoachTip {
   reason: string;
   confidence: number; // 0-100
   severity: "info" | "opportunity" | "warning";
+  apply?: { formation?: FormationKey; tactics?: Partial<Tactics> }; // 원클릭 반영 payload
 }
 
 /**
@@ -47,6 +48,7 @@ export function coachTips(
       : "Opponent full-back on that side is caught high; heatmap shows space in behind. Widen play (Width ↑) and push your winger 1-v-1.",
     confidence: 76,
     severity: "opportunity",
+    apply: { tactics: { width: 82, attack: Math.max(tactics.attack, 62) } },
   });
 
   // 2) 점수차 기반 공격/수비 조정
@@ -59,6 +61,7 @@ export function coachTips(
         : `Trailing ${hs}–${as} with time slipping. Increasing Attack Level and Defensive Line commits more bodies forward and compresses the pitch.`,
       confidence: 82,
       severity: "warning",
+      apply: { tactics: { attack: 82, line: 70, tempo: 68 } },
     });
   } else if (diff > 1) {
     tips.push({
@@ -69,6 +72,7 @@ export function coachTips(
         : "Protect the lead: lower Defensive Line to kill the space in behind and slow Tempo to control possession.",
       confidence: 71,
       severity: "info",
+      apply: { tactics: { line: 34, tempo: 40, attack: 42 } },
     });
   }
 
@@ -82,6 +86,7 @@ export function coachTips(
         : `Press at ${tactics.press}% after minute ${snap.minute} risks gaps. Ease off or make an energetic substitution.`,
       confidence: 68,
       severity: "warning",
+      apply: { tactics: { press: 45, highPress: false } },
     });
   }
 
@@ -95,6 +100,7 @@ export function coachTips(
         : `Momentum swung ${Math.round(snap.momentum)} toward ${opp}. A back three steadies the middle and frees wing-backs to relieve pressure.`,
       confidence: 64,
       severity: "warning",
+      apply: { formation: "352" },
     });
   } else if (snap.momentum > 40 && formation !== "343") {
     tips.push({
@@ -105,6 +111,7 @@ export function coachTips(
         : `Momentum +${Math.round(snap.momentum)}. An extra forward turns pressure into clear chances while the opponent is rocking.`,
       confidence: 66,
       severity: "opportunity",
+      apply: { formation: "343", tactics: { attack: Math.max(tactics.attack, 68) } },
     });
   }
 
@@ -118,6 +125,7 @@ export function coachTips(
         : "One mistimed step lets a runner clean through. Keep it only if your defenders are quick and coordinated.",
       confidence: 59,
       severity: "warning",
+      apply: { tactics: { offsideTrap: false, line: Math.min(tactics.line, 55) } },
     });
   }
 

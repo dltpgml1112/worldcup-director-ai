@@ -71,6 +71,33 @@ export function setCrowdLevel(momentumAbs: number): void {
   bandpass.frequency.setTargetAtTime(420 + (momentumAbs / 100) * 260, t, 0.6);
 }
 
+/** 심판 호루라기 — 짧은 고음 삐- (전/후반 시작·종료) */
+export function whistle(double = false): void {
+  if (!ctx) return;
+  try {
+    const blow = (at: number) => {
+      const osc = ctx!.createOscillator();
+      const g = ctx!.createGain();
+      osc.type = "square";
+      osc.frequency.setValueAtTime(2100, at);
+      osc.frequency.setValueAtTime(2000, at + 0.05);
+      // 트릴(굴림) 느낌
+      for (let i = 0; i < 6; i++) osc.frequency.setValueAtTime(i % 2 ? 2200 : 2000, at + 0.05 + i * 0.03);
+      g.gain.setValueAtTime(0.0001, at);
+      g.gain.exponentialRampToValueAtTime(0.08, at + 0.02);
+      g.gain.exponentialRampToValueAtTime(0.0001, at + 0.32);
+      osc.connect(g).connect(ctx!.destination);
+      osc.start(at);
+      osc.stop(at + 0.34);
+    };
+    const t = ctx.currentTime;
+    blow(t);
+    if (double) blow(t + 0.42);
+  } catch {
+    /* noop */
+  }
+}
+
 /** 골 함성 — 짧은 노이즈 스웰 + 필터 스윕 */
 export function goalRoar(): void {
   if (!ctx) return;

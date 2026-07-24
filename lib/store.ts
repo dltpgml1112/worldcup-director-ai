@@ -36,6 +36,7 @@ interface GameState {
   setup: (p: { coachName: string; matchId: string }) => void;
   setFormation: (f: FormationKey) => void;
   setTactic: <K extends keyof Tactics>(k: K, v: Tactics[K]) => void;
+  applyAdvice: (advice: { formation?: FormationKey; tactics?: Partial<Tactics> }) => void;
   setPlayerPos: (id: string, x: number, y: number) => void;
   makeSub: (offId: string, onId: string) => void;
   setSound: (v: boolean) => void;
@@ -86,6 +87,13 @@ export const useGame = create<GameState>((set, get) => ({
   setFormation: (f) => set((s) => ({ formation: f, players: applyFormation(s.players, f) })),
 
   setTactic: (k, v) => set((s) => ({ tactics: { ...s.tactics, [k]: v } })),
+
+  applyAdvice: ({ formation, tactics }) =>
+    set((s) => ({
+      formation: formation ?? s.formation,
+      players: formation ? applyFormation(s.players, formation) : s.players,
+      tactics: tactics ? { ...s.tactics, ...tactics } : s.tactics,
+    })),
 
   setPlayerPos: (id, x, y) =>
     set((s) => ({

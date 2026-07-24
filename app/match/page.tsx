@@ -6,7 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate } from "@/lib/matchEngine";
-import { startCrowd, stopCrowd, setCrowdLevel, goalRoar } from "@/lib/audio";
+import { startCrowd, stopCrowd, setCrowdLevel, goalRoar, whistle } from "@/lib/audio";
 import { t, type Lang } from "@/lib/i18n";
 import type { MatchEvent } from "@/lib/types";
 import LangToggle from "@/components/LangToggle";
@@ -41,6 +41,7 @@ export default function MatchPage() {
   const [celebration, setCelebration] = useState<MatchEvent | null>(null);
   const celebFor = useRef<number>(-1);
   const resumeAfterCeleb = useRef(false);
+  const whistleFor = useRef<number>(-1);
 
   const match = getMatch(matchId);
   const end = match?.timeline[match.timeline.length - 1]?.minute ?? 90;
@@ -66,8 +67,20 @@ export default function MatchPage() {
       reportShownFor.current = -1;
       setCelebration(null);
       celebFor.current = -1;
+      whistleFor.current = -1;
     }
   }, [minute]);
+
+  // 심판 호루라기 — 킥오프 / 전·후반 종료(휘슬 이벤트)
+  useEffect(() => {
+    if (!match || !sound) return;
+    const ev = match.timeline.find((e) => e.minute === minute && e.type === "whistle");
+    const kickoff = minute === 1;
+    if ((ev || kickoff) && whistleFor.current !== minute) {
+      whistleFor.current = minute;
+      whistle(!!ev);
+    }
+  }, [minute, match, sound]);
 
   // 크라우드 웅성거림을 모멘텀에 연동
   useEffect(() => {
@@ -296,26 +309,32 @@ function AlternateHistory({
       ? `당신의 전술은 `
       : `Your tactics project a `;
   return (
-    <div className="glass rounded-2xl p-4">
+    <div className="panel rounded-lg p-4">
       <div className="mb-3 flex items-center gap-2">
         <span className="text-sm">🦋</span>
-        <span className="text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "alt.title")}</span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-ink-secondary">{t(lang, "alt.title")}</span>
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <div className="rounded-xl border border-white/10 bg-white/5 p-3 text-center">
-          <div className="text-[10px] uppercase tracking-widest text-white/40">{t(lang, "alt.real")}</div>
-          <div className="font-display text-3xl font-bold tabular-nums">{realScore[0]}–{realScore[1]}</div>
+        <div className="rounded-md border border-surface-line bg-surface-panel p-3 text-center">
+          <div className="text-[10px] uppercase tracking-wide text-ink-muted">{t(lang, "alt.real")}</div>
+          <div className="metric-num font-display text-3xl font-bold text-ink-secondary">{realScore[0]}–{realScore[1]}</div>
         </div>
-        <div className="rounded-xl border border-neon-grass/40 bg-neon-grass/10 p-3 text-center">
-          <div className="text-[10px] uppercase tracking-widest text-neon-grass">{t(lang, "alt.your")}</div>
-          <div className="font-display text-3xl font-bold tabular-nums text-neon-grass">{altScore[0]}–{altScore[1]}</div>
+        <div className="rounded-md border border-team-home/40 bg-team-home/10 p-3 text-center">
+          <div className="text-[10px] uppercase tracking-wide text-team-home">{t(lang, "alt.your")}</div>
+          <div className="metric-num font-display text-3xl font-bold text-team-home">{altScore[0]}–{altScore[1]}</div>
         </div>
       </div>
-      <div className="mt-2 text-center text-xs text-white/60">
-        {winLine}<span className="font-bold text-neon-grass">{altWin}%</span>{lang === "ko" ? " 승리 확률을 만듭니다." : " win probability."}
-        {changed ? ` ${t(lang, "alt.rewritten")}` : ` ${t(lang, "alt.same")}`}
+      <div className="mt-3 rounded-md bg-surface-panel px-3 py-2 text-center text-xs leading-relaxed text-ink-secondary">
+        {winLine}
+        <span className="metric-num rounded bg-team-home/15 px-1.5 py-0.5 font-bold text-team-home">{altWin}%</span>
+        {lang === "ko" ? " 승리 확률" : " win probability"}
+        {changed ? (
+          <span className="ml-1 font-semibold text-status-good">· {t(lang, "alt.rewritten")}</span>
+        ) : (
+          <span className="ml-1 text-ink-muted">· {t(lang, "alt.same")}</span>
+        )}
       </div>
-      <p className="mt-2 text-[11px] leading-snug text-white/40">{narrative}</p>
+      <p className="mt-3 text-[11px] leading-relaxed text-ink-muted">{narrative}</p>
     </div>
   );
 }

@@ -94,9 +94,12 @@ export default function SubAdvisor({ match, snap, minute }: { match: MatchData; 
                 {r.on && (
                   <button
                     onClick={() => makeSub(r.off.id, r.on!.id)}
-                    className="mt-2 w-full rounded-md border border-team-home/40 bg-team-home/10 py-1 text-xs font-semibold text-team-home transition hover:bg-team-home/20"
+                    className="mt-2 flex w-full items-center justify-center gap-1.5 rounded-md border border-team-home/40 bg-team-home/10 py-1.5 text-xs font-semibold text-team-home transition hover:bg-team-home/20"
                   >
-                    {t(lang, "adv.apply")} · {r.off.num} → {r.on.num}
+                    {t(lang, "adv.apply")}
+                    <span className="text-status-critical">{offNm} OUT</span>
+                    <span className="text-ink-muted">➔</span>
+                    <span className="text-status-good">{onNm} IN</span>
                   </button>
                 )}
               </div>

@@ -74,6 +74,23 @@ export default function TacticalPitch() {
   const live = playing && minute > 0;
   const ball = ballTarget(match, minute, momentum, playing);
 
+  // 전술 슬라이더 → 선수 배치 실시간 반영 계수
+  const widthF = (tactics.width - 50) / 50; // -1(좁게) ~ +1(넓게)
+  const lineF = (tactics.line - 50) / 50; // -1(깊게) ~ +1(높게)
+  const attackF = (tactics.attack - 50) / 50; // -1(신중) ~ +1(총공격)
+
+  /** 전술값을 반영한 기준 위치 (드래그 좌표 위에 얹는 변형) */
+  const tacticBase = (p: Player) => {
+    if (p.role.toUpperCase() === "GK") return { x: p.x, y: p.y };
+    // 폭: 중앙에서 좌우로 벌리거나 좁힘 (측면 선수일수록 크게)
+    const x = 50 + (p.x - 50) * (1 + widthF * 0.4);
+    // 라인: 블록 전체 상하 + 공격 성향은 전방 선수를 더 끌어올림
+    let y = p.y + lineF * 7;
+    if (p.y > 55) y += attackF * 6;
+    else if (p.y < 30) y += Math.min(0, lineF * 3); // 수비는 라인 낮출 때만 내려감
+    return { x: clamp(x, 5, 95), y: clamp(y, 5, 95) };
+  };
+
   const toPct = (clientX: number, clientY: number) => {
     const r = ref.current!.getBoundingClientRect();
     const px = clamp(((clientX - r.left) / r.width) * 100, 4, 96);
@@ -84,8 +101,10 @@ export default function TacticalPitch() {
   // 홈 선수 화면 좌표
   const homePos = (p: Player, i: number) => {
     const gk = p.role.toUpperCase() === "GK";
-    const baseLeft = p.x;
-    const baseTop = 100 - p.y;
+    // 드래그 중인 선수는 커서 정확도 위해 변형 미적용
+    const b = drag === p.id ? { x: p.x, y: p.y } : tacticBase(p);
+    const baseLeft = b.x;
+    const baseTop = 100 - b.y;
     if (!live || drag === p.id) return { left: baseLeft, top: baseTop };
     const { dx, dy } = drift(i, minute, gk);
     return { left: clamp(baseLeft + dx, 3, 97), top: clamp(baseTop - homeShift + dy, 4, 97) };
