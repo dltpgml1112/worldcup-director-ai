@@ -72,6 +72,14 @@
   .kpi .l{font-size:8.2pt; color:var(--sub); margin-top:4px;}
   .tag{display:inline-block; background:#eef2f7; color:var(--sub); border-radius:5px; padding:2px 8px; font-size:8.4pt; margin:2px 3px 2px 0;}
   .ok{color:var(--good); font-weight:700;}
+  /* 컷툰 스토리보드 */
+  .comic{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+  .cut{position:relative; border:2.5px solid #141922; border-radius:12px; overflow:hidden; background:#fff;}
+  .cut svg{display:block; width:100%; height:auto;}
+  .cut .cutnum{position:absolute; left:7px; top:7px; width:21px;height:21px;line-height:21px;text-align:center;
+    background:#141922;color:#fff;border-radius:50%;font-weight:800;font-size:9.5pt; z-index:2;}
+  .cut .cap{padding:6px 10px; font-size:8.6pt; color:var(--sub); border-top:2.5px solid #141922; line-height:1.4;}
+  .cut .cap b{color:var(--blue);}
   .region{display:flex; gap:8px; align-items:flex-start; margin:5px 0; font-size:9.3pt;}
   .region .lab{flex:0 0 62px; font-weight:700; color:var(--blue);}
 </style>
@@ -101,6 +109,131 @@
     ‘시나리오 데이터’ 태그로 명시됩니다. 2018·2022 결승은 실측 이벤트 기반입니다. 데이터 구조는 StatsBomb Open Data
     스키마와 호환되어 공식 데이터셋 제공 시 즉시 교체 가능합니다. 특정 국가·팀·선수를 비하하지 않으며 상황만 중립·존중 서술합니다.
   </div>
+</section>
+
+<!-- 스토리보드 (컷툰) -->
+<section class="page">
+  <div class="sec">
+    <h2><span class="no">▶</span> 스토리보드 — 한눈에 보는 감독 경험</h2>
+    <p class="sub" style="margin:2px 0 10px">사용자가 화면에서 보는 순서대로: 상황 → 전술 → AI 코치 → 교체 → 대체 역사 → 데이터 한계.</p>
+    <div class="comic">
+
+      <!-- CUT 1 상황 -->
+      <div class="cut"><div class="cutnum">1</div>
+        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+          <rect width="300" height="140" fill="#eef2f7"/>
+          <rect x="16" y="36" width="268" height="92" rx="8" fill="#2f7d4f"/>
+          <line x1="150" y1="36" x2="150" y2="128" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
+          <circle cx="150" cy="82" r="14" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
+          <g fill="#2f6fd0" stroke="#fff" stroke-width="2"><circle cx="58" cy="70" r="8"/><circle cx="96" cy="102" r="8"/><circle cx="120" cy="56" r="8"/></g>
+          <g fill="#c9591f" stroke="#fff" stroke-width="2"><circle cx="208" cy="60" r="8"/><circle cx="238" cy="96" r="8"/><circle cx="252" cy="56" r="8"/></g>
+          <rect x="98" y="8" width="104" height="26" rx="6" fill="#141922"/>
+          <text x="150" y="26" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">KOR 1 : 2 RSA</text>
+          <rect x="150" y="98" width="132" height="28" rx="8" fill="#fff" stroke="#141922" stroke-width="2"/>
+          <text x="216" y="116" text-anchor="middle" font-size="11" font-weight="700" fill="#141922">이대로 탈락 위기…</text>
+        </svg>
+        <div class="cap"><b>상황</b> — 우리 팀이 1–2로 뒤진 채 조별리그 탈락 위기. “내가 감독이라면?”</div>
+      </div>
+
+      <!-- CUT 2 전술 -->
+      <div class="cut"><div class="cutnum">2</div>
+        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+          <rect width="300" height="140" fill="#eef2f7"/>
+          <rect x="16" y="12" width="198" height="116" rx="8" fill="#173a2a"/>
+          <g fill="#2f6fd0" stroke="#fff" stroke-width="2">
+            <circle cx="115" cy="28" r="7"/>
+            <circle cx="48" cy="55" r="7"/><circle cx="93" cy="55" r="7"/><circle cx="137" cy="55" r="7"/><circle cx="182" cy="55" r="7"/>
+            <circle cx="70" cy="88" r="7"/><circle cx="115" cy="88" r="7"/><circle cx="160" cy="88" r="7"/>
+            <circle cx="70" cy="114" r="7"/><circle cx="160" cy="114" r="7"/>
+          </g>
+          <path d="M40 55 l-16 0 M190 55 l16 0" stroke="#c98500" stroke-width="3" fill="none" marker-end=""/>
+          <text x="115" y="10" text-anchor="middle" font-size="9" fill="#8a94a3"></text>
+          <rect x="226" y="30" width="60" height="82" rx="8" fill="#fff" stroke="#141922" stroke-width="2"/>
+          <text x="256" y="47" text-anchor="middle" font-size="10" font-weight="700" fill="#141922">폭 Width</text>
+          <rect x="238" y="60" width="40" height="6" rx="3" fill="#dfe6ee"/>
+          <rect x="238" y="60" width="34" height="6" rx="3" fill="#2f6fd0"/>
+          <circle cx="272" cy="63" r="6" fill="#2f6fd0" stroke="#fff" stroke-width="2"/>
+          <text x="256" y="98" text-anchor="middle" font-size="13" font-weight="800" fill="#2f6fd0">82</text>
+        </svg>
+        <div class="cap"><b>전술</b> — 포메이션·슬라이더로 팀 형태를 직접 설계. 조작이 보드에 실시간 반영.</div>
+      </div>
+
+      <!-- CUT 3 AI 코치 -->
+      <div class="cut"><div class="cutnum">3</div>
+        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+          <rect width="300" height="140" fill="#eef2f7"/>
+          <circle cx="42" cy="46" r="22" fill="#eaf1fb" stroke="#2f6fd0" stroke-width="2.5"/>
+          <text x="42" y="51" text-anchor="middle" font-size="14" font-weight="800" fill="#2f6fd0">AI</text>
+          <rect x="78" y="16" width="206" height="108" rx="10" fill="#fff" stroke="#141922" stroke-width="2.5"/>
+          <path d="M78 44 l-12 6 l12 6 z" fill="#fff" stroke="#141922" stroke-width="2.5"/>
+          <text x="92" y="42" font-size="10.5" font-weight="700" fill="#141922">상대 오른쪽이 열렸다 —</text>
+          <text x="92" y="60" font-size="10.5" font-weight="700" fill="#141922">폭을 넓혀 윙어 1대1!</text>
+          <text x="92" y="80" font-size="8.5" fill="#8a94a3">신뢰도 76%</text>
+          <rect x="92" y="90" width="120" height="22" rx="6" fill="#2f6fd0"/>
+          <text x="152" y="105" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">즉시 적용 ▸</text>
+        </svg>
+        <div class="cap"><b>AI 코치</b> — 근거와 신뢰도를 함께 제시하고, 버튼 한 번으로 전술 즉시 반영.</div>
+      </div>
+
+      <!-- CUT 4 교체 -->
+      <div class="cut"><div class="cutnum">4</div>
+        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+          <rect width="300" height="140" fill="#eef2f7"/>
+          <!-- OUT -->
+          <circle cx="70" cy="52" r="22" fill="#c9591f" stroke="#fff" stroke-width="3"/>
+          <text x="70" y="57" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">7</text>
+          <rect x="40" y="84" width="60" height="8" rx="4" fill="#dfe6ee"/><rect x="40" y="84" width="22" height="8" rx="4" fill="#d03b3b"/>
+          <text x="70" y="106" text-anchor="middle" font-size="9" font-weight="700" fill="#d03b3b">체력 38%</text>
+          <!-- arrow -->
+          <text x="150" y="58" text-anchor="middle" font-size="26" font-weight="800" fill="#141922">➔</text>
+          <!-- IN -->
+          <circle cx="230" cy="52" r="22" fill="#2f6fd0" stroke="#c98500" stroke-width="3"/>
+          <text x="230" y="57" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">12</text>
+          <text x="253" y="34" font-size="13">★</text>
+          <rect x="200" y="84" width="60" height="8" rx="4" fill="#dfe6ee"/><rect x="200" y="84" width="60" height="8" rx="4" fill="#0f8a4a"/>
+          <text x="230" y="106" text-anchor="middle" font-size="9" font-weight="700" fill="#0f8a4a">체력 100%</text>
+          <text x="150" y="128" text-anchor="middle" font-size="10.5" font-weight="800" fill="#141922">손흥민 OUT  ➔  차범근 IN</text>
+        </svg>
+        <div class="cap"><b>교체</b> — 출전시간·체력 근거로 최적 교체를 제안. 스타 선수 투입도 원클릭.</div>
+      </div>
+
+      <!-- CUT 5 대체 역사 -->
+      <div class="cut"><div class="cutnum">5</div>
+        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+          <rect width="300" height="140" fill="#eef2f7"/>
+          <rect x="24" y="40" width="110" height="64" rx="10" fill="#fff" stroke="#8a94a3" stroke-width="2"/>
+          <text x="79" y="60" text-anchor="middle" font-size="9" font-weight="700" fill="#8a94a3">실제 결과</text>
+          <text x="79" y="90" text-anchor="middle" font-size="24" font-weight="800" fill="#8a94a3">1–2</text>
+          <rect x="166" y="34" width="110" height="72" rx="10" fill="#eaf1fb" stroke="#2f6fd0" stroke-width="2.5"/>
+          <text x="221" y="55" text-anchor="middle" font-size="9" font-weight="700" fill="#2f6fd0">나의 결과</text>
+          <text x="221" y="88" text-anchor="middle" font-size="26" font-weight="800" fill="#2f6fd0">3–1</text>
+          <text x="150" y="26" text-anchor="middle" font-size="12" font-weight="800" fill="#0f8a4a">역사가 바뀌었다!</text>
+          <g fill="#c98500"><circle cx="150" cy="118" r="2.5"/><circle cx="120" cy="124" r="2"/><circle cx="185" cy="122" r="2"/><circle cx="100" cy="116" r="2"/><circle cx="205" cy="116" r="2"/></g>
+        </svg>
+        <div class="cap"><b>대체 역사</b> — 전술을 반영한 재시뮬레이션으로 REAL vs YOUR 스코어를 비교.</div>
+      </div>
+
+      <!-- CUT 6 데이터 한계 -->
+      <div class="cut"><div class="cutnum">6</div>
+        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+          <rect width="300" height="140" fill="#eef2f7"/>
+          <rect x="16" y="14" width="268" height="112" rx="10" fill="#fff" stroke="#141922" stroke-width="2"/>
+          <text x="30" y="36" font-size="10" font-weight="800" fill="#141922">데이터 근거</text>
+          <rect x="196" y="22" width="76" height="18" rx="5" fill="#fff4de"/><text x="234" y="35" text-anchor="middle" font-size="8.5" font-weight="700" fill="#b8860b">시나리오</text>
+          <text x="30" y="60" font-size="9" font-weight="800" fill="#0f8a4a">사용 O</text>
+          <rect x="72" y="50" width="70" height="16" rx="4" fill="#e3f6ea"/><text x="107" y="61.5" text-anchor="middle" font-size="8" fill="#0f8a4a">이벤트·xG</text>
+          <rect x="150" y="50" width="58" height="16" rx="4" fill="#e3f6ea"/><text x="179" y="61.5" text-anchor="middle" font-size="8" fill="#0f8a4a">라인업</text>
+          <text x="30" y="92" font-size="9" font-weight="800" fill="#c9591f">제외 X</text>
+          <rect x="72" y="82" width="60" height="16" rx="4" fill="#fbe9df"/><text x="102" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">트래킹</text>
+          <rect x="140" y="82" width="64" height="16" rx="4" fill="#fbe9df"/><text x="172" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">히트맵</text>
+          <rect x="212" y="82" width="60" height="16" rx="4" fill="#fbe9df"/><text x="242" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">부상</text>
+        </svg>
+        <div class="cap"><b>데이터 한계</b> — 장면마다 사용/제외 데이터를 자막으로 명시해 과장 없는 투명성 확보.</div>
+      </div>
+
+    </div>
+  </div>
+  <div class="foot"><span>World Cup Director AI · 기획서</span><span>스토리보드 (컷툰)</span></div>
 </section>
 
 <!-- 1. 서비스 개요 -->
