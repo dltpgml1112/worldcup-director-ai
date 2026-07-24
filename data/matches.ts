@@ -204,9 +204,9 @@ export const MATCHES: MatchData[] = [
     weakFlank: "right",
     dataSource: "scenario",
     realNarrative:
-      "In the real campaign, Korea dominated the ball but couldn't break down a disciplined South Africa. A first-half counter and a second-half set-piece punished defensive lapses; Son Heung-min's equaliser wasn't enough. The 1–2 defeat to a lower-ranked side ended Korea's group-stage hopes before the Round of 32.",
+      "In this scenario, Korea dominated the ball but couldn't break down a well-organised South Africa. A first-half counter and a second-half set-piece punished defensive lapses; Son Heung-min's equaliser wasn't enough. The 1–2 result ended Korea's group-stage campaign before the Round of 32.",
     realNarrativeKo:
-      "실제 대회에서 대한민국은 점유율을 지배하고도 남아공의 밀집 수비를 끝내 뚫지 못했다. 전반 역습과 후반 세트피스에서 수비 실수로 실점했고, 손흥민의 동점골도 승부를 뒤집지 못했다. 피파 랭킹이 낮은 상대에게 당한 1-2 패배로 조별리그에서 탈락, 32강 진출이 좌절됐다. — 이제 당신이 감독이다. 다시 써라.",
+      "이 시나리오에서 대한민국은 점유율을 지배하고도 조직적인 남아공의 수비를 끝내 뚫지 못했다. 전반 역습과 후반 세트피스에서 실점했고, 손흥민의 동점골도 승부를 뒤집지 못했다. 조별리그 최종전에서의 1-2 패배로 32강 진출이 좌절됐다. — 이제 당신이 감독이다. 다시 써라.",
     timeline: [
       { minute: 6, side: "home", type: "chance", player: "Son", detail: "Son Heung-min drives at the RSA back line early", detailKo: "손흥민이 초반부터 남아공 수비를 흔든다" },
       { minute: 14, side: "home", type: "shot", player: "Lee Kang-in", detail: "Lee Kang-in curls one just wide", detailKo: "이강인의 감아차기, 골문을 살짝 벗어난다", xg: 0.06 },
