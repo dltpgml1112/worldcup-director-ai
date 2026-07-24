@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <title>World Cup Director AI — 기획서</title>
 <style>
-  @page{ size:A4; margin:0; }
+  @page{ size:A4 landscape; margin:0; }
   :root{
     --blue:#2f6fd0; --blue-soft:#eaf1fb; --ink:#141922; --sub:#4b5563;
     --muted:#8a94a3; --line:#e3e7ee; --panel:#f7f9fc; --orange:#c9591f;
@@ -14,74 +14,80 @@
   html,body{margin:0;padding:0;}
   body{
     font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,"Segoe UI",sans-serif;
-    color:var(--ink); font-size:10.3pt; line-height:1.55;
+    color:var(--ink); font-size:10.8pt; line-height:1.55;
     -webkit-print-color-adjust:exact; print-color-adjust:exact;
   }
-  .page{ width:210mm; min-height:297mm; padding:16mm 18mm 15mm; margin:0 auto; background:#fff; position:relative; page-break-after:always; }
+  .page{ width:297mm; height:210mm; padding:13mm 16mm 12mm; margin:0 auto; background:#fff; position:relative; page-break-after:always; overflow:hidden; }
   .page:last-child{page-break-after:auto;}
 
-  .cover{display:flex; flex-direction:column; justify-content:center; min-height:265mm;}
+  /* 표지 */
+  .cover{display:flex; flex-direction:column; justify-content:center; height:185mm;}
   .badge{display:inline-block; align-self:flex-start; background:var(--blue-soft); color:var(--blue);
-    font-weight:700; font-size:9pt; letter-spacing:.06em; padding:5px 12px; border-radius:6px; text-transform:uppercase;}
-  .cover h1{font-size:33pt; line-height:1.1; margin:16px 0 6px; letter-spacing:-.01em;}
+    font-weight:700; font-size:9.5pt; letter-spacing:.06em; padding:6px 14px; border-radius:6px; text-transform:uppercase;}
+  .cover h1{font-size:40pt; line-height:1.05; margin:16px 0 6px; letter-spacing:-.01em;}
   .cover h1 .accent{color:var(--blue);}
-  .cover .kor{font-size:15pt; color:var(--sub); font-weight:600; margin-bottom:20px;}
-  .cover .lead{font-size:11.5pt; color:var(--sub); max-width:152mm; line-height:1.7;}
+  .cover .kor{font-size:17pt; color:var(--sub); font-weight:600; margin-bottom:18px;}
+  .cover .lead{font-size:12.5pt; color:var(--sub); max-width:210mm; line-height:1.7;}
   .cover .lead b{color:var(--ink);}
-  .cover .meta{margin-top:30px; border-top:2px solid var(--line); padding-top:14px;
-    display:grid; grid-template-columns:repeat(2,1fr); gap:7px 28px; font-size:9.6pt; color:var(--sub);}
-  .cover .meta b{color:var(--ink); display:inline-block; width:82px;}
-  .cover .disclaimer{margin-top:18px; background:#fff8ec; border:1px solid #f0dcae; border-radius:8px;
-    padding:11px 14px; font-size:8.8pt; color:#7a5b12; line-height:1.55;}
+  .cover .meta{margin-top:24px; border-top:2px solid var(--line); padding-top:14px;
+    display:grid; grid-template-columns:repeat(3,1fr); gap:8px 28px; font-size:10pt; color:var(--sub);}
+  .cover .meta b{color:var(--ink); display:inline-block; width:60px;}
+  .cover .disclaimer{margin-top:16px; background:#fff8ec; border:1px solid #f0dcae; border-radius:8px;
+    padding:11px 16px; font-size:9pt; color:#7a5b12; line-height:1.55;}
 
-  h2{font-size:14.5pt; margin:0 0 8px; padding-bottom:7px; border-bottom:2px solid var(--blue); display:flex; align-items:baseline; gap:9px;}
+  h2{font-size:16pt; margin:0 0 10px; padding-bottom:8px; border-bottom:2px solid var(--blue); display:flex; align-items:baseline; gap:10px;}
   h2 .no{color:var(--blue); font-weight:800;}
-  .sec{margin-bottom:16px;}
-  h3{font-size:11pt; margin:13px 0 3px;}
+  h3{font-size:11.5pt; margin:12px 0 4px;}
   p{margin:5px 0;}
   .sub{color:var(--sub);}
-  ul{margin:5px 0; padding-left:17px;}
-  li{margin:2px 0;}
+  ul{margin:5px 0; padding-left:18px;}
+  li{margin:3px 0;}
   b.k{color:var(--blue);}
-  .lead2{font-size:10.6pt; color:var(--sub); margin:8px 0 4px;}
+  .lead2{font-size:11.5pt; color:var(--sub); margin:6px 0 10px;}
 
-  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:10px;}
-  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
-  .card{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:11px 13px;}
-  .card h4{margin:0 0 3px; font-size:10pt; color:var(--blue);}
-  .card p{margin:0; font-size:9.2pt; color:var(--sub); line-height:1.5;}
+  /* 2단 레이아웃 (가로 폭 활용) */
+  .cols{column-count:2; column-gap:16mm;}
+  .cols > *{break-inside:avoid;}
+  .card,.callout,table,ul,.region{break-inside:avoid;}
 
-  table{width:100%; border-collapse:collapse; margin:7px 0; font-size:9.3pt;}
-  th,td{text-align:left; padding:7px 9px; border-bottom:1px solid var(--line); vertical-align:top;}
-  th{background:var(--panel); color:var(--sub); font-weight:700; font-size:8.3pt; text-transform:uppercase; letter-spacing:.04em;}
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .grid3{display:grid; grid-template-columns:repeat(3,1fr); gap:12px;}
+  .grid4{display:grid; grid-template-columns:repeat(4,1fr); gap:12px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px;}
+  .card h4{margin:0 0 4px; font-size:10.5pt; color:var(--blue);}
+  .card p{margin:0; font-size:9.6pt; color:var(--sub); line-height:1.5;}
+
+  table{width:100%; border-collapse:collapse; margin:6px 0; font-size:9.8pt;}
+  th,td{text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+  th{background:var(--panel); color:var(--sub); font-weight:700; font-size:8.6pt; text-transform:uppercase; letter-spacing:.04em;}
   td b{color:var(--ink);}
 
-  .callout{background:var(--blue-soft); border-left:3px solid var(--blue); border-radius:0 8px 8px 0; padding:11px 15px; margin:9px 0; font-size:9.6pt;}
+  .callout{background:var(--blue-soft); border-left:3px solid var(--blue); border-radius:0 8px 8px 0; padding:11px 15px; margin:9px 0; font-size:10pt;}
   .callout.good{background:#eafaf0; border-color:var(--good);}
   .callout.warn{background:#fff8ec; border-color:var(--warn); color:#5f4a11;}
 
-  .flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:9px 0;}
-  .step{background:#fff; border:1px solid var(--line); border-radius:8px; padding:9px 7px; text-align:center;}
-  .step .n{display:inline-block; width:19px;height:19px;line-height:19px; border-radius:50%; background:var(--blue); color:#fff; font-size:8.5pt; font-weight:700; margin-bottom:5px;}
-  .step .t{font-size:8.4pt; color:var(--sub); line-height:1.3;}
+  .flow{display:grid; grid-template-columns:repeat(5,1fr); gap:10px; margin:8px 0;}
+  .step{background:#fff; border:1px solid var(--line); border-radius:8px; padding:11px 9px; text-align:center;}
+  .step .n{display:inline-block; width:22px;height:22px;line-height:22px; border-radius:50%; background:var(--blue); color:#fff; font-size:9.5pt; font-weight:700; margin-bottom:6px;}
+  .step .t{font-size:9pt; color:var(--sub); line-height:1.35;}
 
-  .foot{position:absolute; left:18mm; right:18mm; bottom:9mm; display:flex; justify-content:space-between; font-size:8pt; color:var(--muted); border-top:1px solid var(--line); padding-top:6px;}
-  .kpi{display:flex; gap:9px; margin:8px 0;}
-  .kpi .b{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:9px; text-align:center;}
-  .kpi .v{font-size:15pt; font-weight:800; color:var(--blue); line-height:1;}
-  .kpi .l{font-size:8.2pt; color:var(--sub); margin-top:4px;}
-  .tag{display:inline-block; background:#eef2f7; color:var(--sub); border-radius:5px; padding:2px 8px; font-size:8.4pt; margin:2px 3px 2px 0;}
+  .foot{position:absolute; left:16mm; right:16mm; bottom:7mm; display:flex; justify-content:space-between; font-size:8.2pt; color:var(--muted); border-top:1px solid var(--line); padding-top:6px;}
+  .kpi{display:flex; gap:12px; margin:8px 0;}
+  .kpi .b{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px; text-align:center;}
+  .kpi .v{font-size:20pt; font-weight:800; color:var(--blue); line-height:1;}
+  .kpi .l{font-size:8.8pt; color:var(--sub); margin-top:5px;}
+  .tag{display:inline-block; background:#eef2f7; color:var(--sub); border-radius:5px; padding:3px 9px; font-size:9pt; margin:2px 4px 2px 0;}
   .ok{color:var(--good); font-weight:700;}
-  /* 컷툰 스토리보드 */
-  .comic{display:grid; grid-template-columns:1fr 1fr; gap:9px;}
+  .region{display:flex; gap:9px; align-items:flex-start; margin:7px 0; font-size:9.8pt;}
+  .region .lab{flex:0 0 62px; font-weight:700; color:var(--blue);}
+
+  /* 컷툰 */
+  .comic{display:grid; grid-template-columns:repeat(3,1fr); gap:10px;}
   .cut{position:relative; border:2.5px solid #141922; border-radius:12px; overflow:hidden; background:#fff;}
   .cut svg{display:block; width:100%; height:auto;}
-  .cut .cutnum{position:absolute; left:7px; top:7px; width:21px;height:21px;line-height:21px;text-align:center;
-    background:#141922;color:#fff;border-radius:50%;font-weight:800;font-size:9.5pt; z-index:2;}
-  .cut .cap{padding:6px 10px; font-size:8.6pt; color:var(--sub); border-top:2.5px solid #141922; line-height:1.4;}
+  .cut .cutnum{position:absolute; left:7px; top:7px; width:22px;height:22px;line-height:22px;text-align:center; background:#141922;color:#fff;border-radius:50%;font-weight:800;font-size:10pt; z-index:2;}
+  .cut .cap{padding:7px 11px; font-size:9pt; color:var(--sub); border-top:2.5px solid #141922; line-height:1.4;}
   .cut .cap b{color:var(--blue);}
-  .region{display:flex; gap:8px; align-items:flex-start; margin:5px 0; font-size:9.3pt;}
-  .region .lab{flex:0 0 62px; font-weight:700; color:var(--blue);}
 </style>
 </head>
 <body>
@@ -92,145 +98,130 @@
   <h1>World Cup <span class="accent">Director</span> AI</h1>
   <div class="kor">월드컵 디렉터 AI — 당신이 감독이라면?</div>
   <p class="lead">
-    2026 월드컵을 무대로, 사용자가 <b>직접 감독이 되어</b> 전술을 설계하고 선수를 배치하는
-    <b>동적 전술 시뮬레이터</b>. 실제 코칭 스태프의 <b>부하관리·교체 판단</b>을 데이터로 보조하고,
-    대표팀의 아쉬웠던 경기를 <b>대체 역사</b>로 다시 쓴다.
+    2026 월드컵을 무대로, 사용자가 <b>직접 감독이 되어</b> 전술을 설계하고 선수를 배치하는 <b>동적 전술 시뮬레이터</b>.
+    실제 코칭 스태프의 <b>부하관리·교체 판단</b>을 데이터로 보조하고, 대표팀의 아쉬웠던 경기를 <b>대체 역사</b>로 다시 쓴다.
   </p>
   <div class="meta">
-    <div><b>대회</b> World Cup Manager / Tactics Web Challenge</div>
-    <div><b>제출물</b> 기획서 (PDF) · 마감 2026-07-27 10:00</div>
-    <div><b>형태</b> 반응형 웹앱 (설치·회원가입 불필요)</div>
-    <div><b>스택</b> Next.js 14 · TypeScript · Tailwind</div>
-    <div><b>언어</b> 한국어 / English 전체 현지화</div>
+    <div><b>대회</b> Tactics Web Challenge</div>
+    <div><b>제출</b> 기획서 PDF · ~07-27 10:00</div>
+    <div><b>형태</b> 반응형 웹앱(설치·로그인 불필요)</div>
+    <div><b>스택</b> Next.js 14 · TS · Tailwind</div>
+    <div><b>언어</b> 한국어 / English</div>
     <div><b>참여</b> 개인 / 팀(최대 5인)</div>
   </div>
   <div class="disclaimer">
-    <b>데이터 고지</b> — 2026 경기 데이터는 실제 결과가 확정 반영되지 않은 <b>시나리오(가상) 데이터</b>이며 앱 내
-    ‘시나리오 데이터’ 태그로 명시됩니다. 2018·2022 결승은 실측 이벤트 기반입니다. 데이터 구조는 StatsBomb Open Data
-    스키마와 호환되어 공식 데이터셋 제공 시 즉시 교체 가능합니다. 특정 국가·팀·선수를 비하하지 않으며 상황만 중립·존중 서술합니다.
+    <b>데이터 고지</b> — 2026 경기 데이터는 실제 결과가 확정 반영되지 않은 <b>시나리오(가상) 데이터</b>이며 앱 내 ‘시나리오 데이터’ 태그로 명시됩니다.
+    2018·2022 결승은 실측 이벤트 기반이며, 구조는 StatsBomb Open Data 스키마와 호환되어 공식 데이터셋 제공 시 즉시 교체 가능합니다.
+    특정 국가·팀·선수를 비하하지 않으며 상황만 중립·존중 서술합니다.
   </div>
 </section>
 
 <!-- 스토리보드 (컷툰) -->
 <section class="page">
-  <div class="sec">
-    <h2><span class="no">▶</span> 스토리보드 — 한눈에 보는 감독 경험</h2>
-    <p class="sub" style="margin:2px 0 10px">사용자가 화면에서 보는 순서대로: 상황 → 전술 → AI 코치 → 교체 → 대체 역사 → 데이터 한계.</p>
-    <div class="comic">
+  <h2><span class="no">▶</span> 스토리보드 — 한눈에 보는 감독 경험</h2>
+  <p class="sub" style="margin:0 0 9px">사용자가 화면에서 보는 순서대로: 상황 → 전술 → AI 코치 → 교체 → 대체 역사 → 데이터 한계.</p>
+  <div class="comic">
+    <div class="cut"><div class="cutnum">1</div>
+      <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+        <rect width="300" height="140" fill="#eef2f7"/>
+        <rect x="16" y="36" width="268" height="92" rx="8" fill="#2f7d4f"/>
+        <line x1="150" y1="36" x2="150" y2="128" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
+        <circle cx="150" cy="82" r="14" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
+        <g fill="#2f6fd0" stroke="#fff" stroke-width="2"><circle cx="58" cy="70" r="8"/><circle cx="96" cy="102" r="8"/><circle cx="120" cy="56" r="8"/></g>
+        <g fill="#c9591f" stroke="#fff" stroke-width="2"><circle cx="208" cy="60" r="8"/><circle cx="238" cy="96" r="8"/><circle cx="252" cy="56" r="8"/></g>
+        <rect x="98" y="8" width="104" height="26" rx="6" fill="#141922"/>
+        <text x="150" y="26" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">KOR 1 : 2 RSA</text>
+        <rect x="150" y="98" width="132" height="28" rx="8" fill="#fff" stroke="#141922" stroke-width="2"/>
+        <text x="216" y="116" text-anchor="middle" font-size="11" font-weight="700" fill="#141922">이대로 탈락 위기…</text>
+      </svg>
+      <div class="cap"><b>상황</b> — 1–2로 뒤진 채 조별리그 탈락 위기. “내가 감독이라면?”</div>
+    </div>
 
-      <!-- CUT 1 상황 -->
-      <div class="cut"><div class="cutnum">1</div>
-        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
-          <rect width="300" height="140" fill="#eef2f7"/>
-          <rect x="16" y="36" width="268" height="92" rx="8" fill="#2f7d4f"/>
-          <line x1="150" y1="36" x2="150" y2="128" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
-          <circle cx="150" cy="82" r="14" fill="none" stroke="#fff" stroke-opacity=".55" stroke-width="2"/>
-          <g fill="#2f6fd0" stroke="#fff" stroke-width="2"><circle cx="58" cy="70" r="8"/><circle cx="96" cy="102" r="8"/><circle cx="120" cy="56" r="8"/></g>
-          <g fill="#c9591f" stroke="#fff" stroke-width="2"><circle cx="208" cy="60" r="8"/><circle cx="238" cy="96" r="8"/><circle cx="252" cy="56" r="8"/></g>
-          <rect x="98" y="8" width="104" height="26" rx="6" fill="#141922"/>
-          <text x="150" y="26" text-anchor="middle" font-size="14" font-weight="800" fill="#fff">KOR 1 : 2 RSA</text>
-          <rect x="150" y="98" width="132" height="28" rx="8" fill="#fff" stroke="#141922" stroke-width="2"/>
-          <text x="216" y="116" text-anchor="middle" font-size="11" font-weight="700" fill="#141922">이대로 탈락 위기…</text>
-        </svg>
-        <div class="cap"><b>상황</b> — 우리 팀이 1–2로 뒤진 채 조별리그 탈락 위기. “내가 감독이라면?”</div>
-      </div>
+    <div class="cut"><div class="cutnum">2</div>
+      <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+        <rect width="300" height="140" fill="#eef2f7"/>
+        <rect x="16" y="12" width="198" height="116" rx="8" fill="#173a2a"/>
+        <g fill="#2f6fd0" stroke="#fff" stroke-width="2">
+          <circle cx="115" cy="28" r="7"/>
+          <circle cx="48" cy="55" r="7"/><circle cx="93" cy="55" r="7"/><circle cx="137" cy="55" r="7"/><circle cx="182" cy="55" r="7"/>
+          <circle cx="70" cy="88" r="7"/><circle cx="115" cy="88" r="7"/><circle cx="160" cy="88" r="7"/>
+          <circle cx="70" cy="114" r="7"/><circle cx="160" cy="114" r="7"/>
+        </g>
+        <path d="M40 55 l-16 0 M190 55 l16 0" stroke="#c98500" stroke-width="3" fill="none"/>
+        <rect x="226" y="30" width="60" height="82" rx="8" fill="#fff" stroke="#141922" stroke-width="2"/>
+        <text x="256" y="47" text-anchor="middle" font-size="10" font-weight="700" fill="#141922">폭 Width</text>
+        <rect x="238" y="60" width="40" height="6" rx="3" fill="#dfe6ee"/>
+        <rect x="238" y="60" width="34" height="6" rx="3" fill="#2f6fd0"/>
+        <circle cx="272" cy="63" r="6" fill="#2f6fd0" stroke="#fff" stroke-width="2"/>
+        <text x="256" y="98" text-anchor="middle" font-size="13" font-weight="800" fill="#2f6fd0">82</text>
+      </svg>
+      <div class="cap"><b>전술</b> — 포메이션·슬라이더로 팀 형태를 설계, 보드에 실시간 반영.</div>
+    </div>
 
-      <!-- CUT 2 전술 -->
-      <div class="cut"><div class="cutnum">2</div>
-        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
-          <rect width="300" height="140" fill="#eef2f7"/>
-          <rect x="16" y="12" width="198" height="116" rx="8" fill="#173a2a"/>
-          <g fill="#2f6fd0" stroke="#fff" stroke-width="2">
-            <circle cx="115" cy="28" r="7"/>
-            <circle cx="48" cy="55" r="7"/><circle cx="93" cy="55" r="7"/><circle cx="137" cy="55" r="7"/><circle cx="182" cy="55" r="7"/>
-            <circle cx="70" cy="88" r="7"/><circle cx="115" cy="88" r="7"/><circle cx="160" cy="88" r="7"/>
-            <circle cx="70" cy="114" r="7"/><circle cx="160" cy="114" r="7"/>
-          </g>
-          <path d="M40 55 l-16 0 M190 55 l16 0" stroke="#c98500" stroke-width="3" fill="none" marker-end=""/>
-          <text x="115" y="10" text-anchor="middle" font-size="9" fill="#8a94a3"></text>
-          <rect x="226" y="30" width="60" height="82" rx="8" fill="#fff" stroke="#141922" stroke-width="2"/>
-          <text x="256" y="47" text-anchor="middle" font-size="10" font-weight="700" fill="#141922">폭 Width</text>
-          <rect x="238" y="60" width="40" height="6" rx="3" fill="#dfe6ee"/>
-          <rect x="238" y="60" width="34" height="6" rx="3" fill="#2f6fd0"/>
-          <circle cx="272" cy="63" r="6" fill="#2f6fd0" stroke="#fff" stroke-width="2"/>
-          <text x="256" y="98" text-anchor="middle" font-size="13" font-weight="800" fill="#2f6fd0">82</text>
-        </svg>
-        <div class="cap"><b>전술</b> — 포메이션·슬라이더로 팀 형태를 직접 설계. 조작이 보드에 실시간 반영.</div>
-      </div>
+    <div class="cut"><div class="cutnum">3</div>
+      <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+        <rect width="300" height="140" fill="#eef2f7"/>
+        <circle cx="42" cy="46" r="22" fill="#eaf1fb" stroke="#2f6fd0" stroke-width="2.5"/>
+        <text x="42" y="51" text-anchor="middle" font-size="14" font-weight="800" fill="#2f6fd0">AI</text>
+        <rect x="78" y="16" width="206" height="108" rx="10" fill="#fff" stroke="#141922" stroke-width="2.5"/>
+        <path d="M78 44 l-12 6 l12 6 z" fill="#fff" stroke="#141922" stroke-width="2.5"/>
+        <text x="92" y="42" font-size="10.5" font-weight="700" fill="#141922">상대 오른쪽이 열렸다 —</text>
+        <text x="92" y="60" font-size="10.5" font-weight="700" fill="#141922">폭을 넓혀 윙어 1대1!</text>
+        <text x="92" y="80" font-size="8.5" fill="#8a94a3">신뢰도 76%</text>
+        <rect x="92" y="90" width="122" height="22" rx="6" fill="#2f6fd0"/>
+        <text x="153" y="105" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">즉시 적용 ▸</text>
+      </svg>
+      <div class="cap"><b>AI 코치</b> — 근거·신뢰도 제시, 버튼 한 번으로 전술 즉시 반영.</div>
+    </div>
 
-      <!-- CUT 3 AI 코치 -->
-      <div class="cut"><div class="cutnum">3</div>
-        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
-          <rect width="300" height="140" fill="#eef2f7"/>
-          <circle cx="42" cy="46" r="22" fill="#eaf1fb" stroke="#2f6fd0" stroke-width="2.5"/>
-          <text x="42" y="51" text-anchor="middle" font-size="14" font-weight="800" fill="#2f6fd0">AI</text>
-          <rect x="78" y="16" width="206" height="108" rx="10" fill="#fff" stroke="#141922" stroke-width="2.5"/>
-          <path d="M78 44 l-12 6 l12 6 z" fill="#fff" stroke="#141922" stroke-width="2.5"/>
-          <text x="92" y="42" font-size="10.5" font-weight="700" fill="#141922">상대 오른쪽이 열렸다 —</text>
-          <text x="92" y="60" font-size="10.5" font-weight="700" fill="#141922">폭을 넓혀 윙어 1대1!</text>
-          <text x="92" y="80" font-size="8.5" fill="#8a94a3">신뢰도 76%</text>
-          <rect x="92" y="90" width="120" height="22" rx="6" fill="#2f6fd0"/>
-          <text x="152" y="105" text-anchor="middle" font-size="10" font-weight="800" fill="#fff">즉시 적용 ▸</text>
-        </svg>
-        <div class="cap"><b>AI 코치</b> — 근거와 신뢰도를 함께 제시하고, 버튼 한 번으로 전술 즉시 반영.</div>
-      </div>
+    <div class="cut"><div class="cutnum">4</div>
+      <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+        <rect width="300" height="140" fill="#eef2f7"/>
+        <circle cx="70" cy="50" r="22" fill="#c9591f" stroke="#fff" stroke-width="3"/>
+        <text x="70" y="55" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">7</text>
+        <rect x="40" y="82" width="60" height="8" rx="4" fill="#dfe6ee"/><rect x="40" y="82" width="22" height="8" rx="4" fill="#d03b3b"/>
+        <text x="70" y="104" text-anchor="middle" font-size="9" font-weight="700" fill="#d03b3b">체력 38%</text>
+        <text x="150" y="57" text-anchor="middle" font-size="24" font-weight="800" fill="#141922">➔</text>
+        <circle cx="230" cy="50" r="22" fill="#2f6fd0" stroke="#c98500" stroke-width="3"/>
+        <text x="230" y="55" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">12</text>
+        <text x="252" y="33" font-size="13" fill="#c98500">★</text>
+        <rect x="200" y="82" width="60" height="8" rx="4" fill="#dfe6ee"/><rect x="200" y="82" width="60" height="8" rx="4" fill="#0f8a4a"/>
+        <text x="230" y="104" text-anchor="middle" font-size="9" font-weight="700" fill="#0f8a4a">체력 100%</text>
+        <text x="150" y="128" text-anchor="middle" font-size="10.5" font-weight="800" fill="#141922">손흥민 OUT  ➔  차범근 IN</text>
+      </svg>
+      <div class="cap"><b>교체</b> — 출전시간·체력 근거로 최적 교체 제안, 스타 투입도 원클릭.</div>
+    </div>
 
-      <!-- CUT 4 교체 -->
-      <div class="cut"><div class="cutnum">4</div>
-        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
-          <rect width="300" height="140" fill="#eef2f7"/>
-          <!-- OUT -->
-          <circle cx="70" cy="52" r="22" fill="#c9591f" stroke="#fff" stroke-width="3"/>
-          <text x="70" y="57" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">7</text>
-          <rect x="40" y="84" width="60" height="8" rx="4" fill="#dfe6ee"/><rect x="40" y="84" width="22" height="8" rx="4" fill="#d03b3b"/>
-          <text x="70" y="106" text-anchor="middle" font-size="9" font-weight="700" fill="#d03b3b">체력 38%</text>
-          <!-- arrow -->
-          <text x="150" y="58" text-anchor="middle" font-size="26" font-weight="800" fill="#141922">➔</text>
-          <!-- IN -->
-          <circle cx="230" cy="52" r="22" fill="#2f6fd0" stroke="#c98500" stroke-width="3"/>
-          <text x="230" y="57" text-anchor="middle" font-size="15" font-weight="800" fill="#fff">12</text>
-          <text x="253" y="34" font-size="13">★</text>
-          <rect x="200" y="84" width="60" height="8" rx="4" fill="#dfe6ee"/><rect x="200" y="84" width="60" height="8" rx="4" fill="#0f8a4a"/>
-          <text x="230" y="106" text-anchor="middle" font-size="9" font-weight="700" fill="#0f8a4a">체력 100%</text>
-          <text x="150" y="128" text-anchor="middle" font-size="10.5" font-weight="800" fill="#141922">손흥민 OUT  ➔  차범근 IN</text>
-        </svg>
-        <div class="cap"><b>교체</b> — 출전시간·체력 근거로 최적 교체를 제안. 스타 선수 투입도 원클릭.</div>
-      </div>
+    <div class="cut"><div class="cutnum">5</div>
+      <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+        <rect width="300" height="140" fill="#eef2f7"/>
+        <rect x="24" y="42" width="110" height="62" rx="10" fill="#fff" stroke="#8a94a3" stroke-width="2"/>
+        <text x="79" y="61" text-anchor="middle" font-size="9" font-weight="700" fill="#8a94a3">실제 결과</text>
+        <text x="79" y="91" text-anchor="middle" font-size="24" font-weight="800" fill="#8a94a3">1–2</text>
+        <rect x="166" y="36" width="110" height="72" rx="10" fill="#eaf1fb" stroke="#2f6fd0" stroke-width="2.5"/>
+        <text x="221" y="57" text-anchor="middle" font-size="9" font-weight="700" fill="#2f6fd0">나의 결과</text>
+        <text x="221" y="90" text-anchor="middle" font-size="26" font-weight="800" fill="#2f6fd0">3–1</text>
+        <text x="150" y="26" text-anchor="middle" font-size="12" font-weight="800" fill="#0f8a4a">역사가 바뀌었다!</text>
+        <g fill="#c98500"><circle cx="150" cy="120" r="2.5"/><circle cx="120" cy="126" r="2"/><circle cx="185" cy="124" r="2"/><circle cx="100" cy="118" r="2"/><circle cx="205" cy="118" r="2"/></g>
+      </svg>
+      <div class="cap"><b>대체 역사</b> — 전술 반영 재시뮬레이션으로 REAL vs YOUR 스코어 비교.</div>
+    </div>
 
-      <!-- CUT 5 대체 역사 -->
-      <div class="cut"><div class="cutnum">5</div>
-        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
-          <rect width="300" height="140" fill="#eef2f7"/>
-          <rect x="24" y="40" width="110" height="64" rx="10" fill="#fff" stroke="#8a94a3" stroke-width="2"/>
-          <text x="79" y="60" text-anchor="middle" font-size="9" font-weight="700" fill="#8a94a3">실제 결과</text>
-          <text x="79" y="90" text-anchor="middle" font-size="24" font-weight="800" fill="#8a94a3">1–2</text>
-          <rect x="166" y="34" width="110" height="72" rx="10" fill="#eaf1fb" stroke="#2f6fd0" stroke-width="2.5"/>
-          <text x="221" y="55" text-anchor="middle" font-size="9" font-weight="700" fill="#2f6fd0">나의 결과</text>
-          <text x="221" y="88" text-anchor="middle" font-size="26" font-weight="800" fill="#2f6fd0">3–1</text>
-          <text x="150" y="26" text-anchor="middle" font-size="12" font-weight="800" fill="#0f8a4a">역사가 바뀌었다!</text>
-          <g fill="#c98500"><circle cx="150" cy="118" r="2.5"/><circle cx="120" cy="124" r="2"/><circle cx="185" cy="122" r="2"/><circle cx="100" cy="116" r="2"/><circle cx="205" cy="116" r="2"/></g>
-        </svg>
-        <div class="cap"><b>대체 역사</b> — 전술을 반영한 재시뮬레이션으로 REAL vs YOUR 스코어를 비교.</div>
-      </div>
-
-      <!-- CUT 6 데이터 한계 -->
-      <div class="cut"><div class="cutnum">6</div>
-        <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
-          <rect width="300" height="140" fill="#eef2f7"/>
-          <rect x="16" y="14" width="268" height="112" rx="10" fill="#fff" stroke="#141922" stroke-width="2"/>
-          <text x="30" y="36" font-size="10" font-weight="800" fill="#141922">데이터 근거</text>
-          <rect x="196" y="22" width="76" height="18" rx="5" fill="#fff4de"/><text x="234" y="35" text-anchor="middle" font-size="8.5" font-weight="700" fill="#b8860b">시나리오</text>
-          <text x="30" y="60" font-size="9" font-weight="800" fill="#0f8a4a">사용 O</text>
-          <rect x="72" y="50" width="70" height="16" rx="4" fill="#e3f6ea"/><text x="107" y="61.5" text-anchor="middle" font-size="8" fill="#0f8a4a">이벤트·xG</text>
-          <rect x="150" y="50" width="58" height="16" rx="4" fill="#e3f6ea"/><text x="179" y="61.5" text-anchor="middle" font-size="8" fill="#0f8a4a">라인업</text>
-          <text x="30" y="92" font-size="9" font-weight="800" fill="#c9591f">제외 X</text>
-          <rect x="72" y="82" width="60" height="16" rx="4" fill="#fbe9df"/><text x="102" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">트래킹</text>
-          <rect x="140" y="82" width="64" height="16" rx="4" fill="#fbe9df"/><text x="172" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">히트맵</text>
-          <rect x="212" y="82" width="60" height="16" rx="4" fill="#fbe9df"/><text x="242" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">부상</text>
-        </svg>
-        <div class="cap"><b>데이터 한계</b> — 장면마다 사용/제외 데이터를 자막으로 명시해 과장 없는 투명성 확보.</div>
-      </div>
-
+    <div class="cut"><div class="cutnum">6</div>
+      <svg viewBox="0 0 300 140" font-family="'Malgun Gothic',sans-serif">
+        <rect width="300" height="140" fill="#eef2f7"/>
+        <rect x="16" y="14" width="268" height="112" rx="10" fill="#fff" stroke="#141922" stroke-width="2"/>
+        <text x="30" y="36" font-size="10" font-weight="800" fill="#141922">데이터 근거</text>
+        <rect x="196" y="22" width="76" height="18" rx="5" fill="#fff4de"/><text x="234" y="35" text-anchor="middle" font-size="8.5" font-weight="700" fill="#b8860b">시나리오</text>
+        <text x="30" y="60" font-size="9" font-weight="800" fill="#0f8a4a">사용 O</text>
+        <rect x="72" y="50" width="72" height="16" rx="4" fill="#e3f6ea"/><text x="108" y="61.5" text-anchor="middle" font-size="8" fill="#0f8a4a">이벤트·xG</text>
+        <rect x="152" y="50" width="56" height="16" rx="4" fill="#e3f6ea"/><text x="180" y="61.5" text-anchor="middle" font-size="8" fill="#0f8a4a">라인업</text>
+        <text x="30" y="92" font-size="9" font-weight="800" fill="#c9591f">제외 X</text>
+        <rect x="72" y="82" width="58" height="16" rx="4" fill="#fbe9df"/><text x="101" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">트래킹</text>
+        <rect x="138" y="82" width="58" height="16" rx="4" fill="#fbe9df"/><text x="167" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">히트맵</text>
+        <rect x="204" y="82" width="58" height="16" rx="4" fill="#fbe9df"/><text x="233" y="93.5" text-anchor="middle" font-size="8" fill="#c9591f">부상</text>
+      </svg>
+      <div class="cap"><b>데이터 한계</b> — 장면마다 사용/제외 데이터를 자막으로 명시.</div>
     </div>
   </div>
   <div class="foot"><span>World Cup Director AI · 기획서</span><span>스토리보드 (컷툰)</span></div>
@@ -238,160 +229,160 @@
 
 <!-- 1. 서비스 개요 -->
 <section class="page">
-  <div class="sec">
-    <h2><span class="no">01</span> 서비스 개요</h2>
-    <p class="lead2">실제(또는 시나리오) 경기를 <b>분 단위로 리플레이</b>하며, 사용자가 전술 보드를 지휘하고
-      AI 코치의 근거 있는 제안을 받아 <b>대체 역사</b>를 만드는 웹 서비스.</p>
-    <div class="kpi">
-      <div class="b"><div class="v">3</div><div class="l">실측/시나리오 경기</div></div>
-      <div class="b"><div class="v">5</div><div class="l">포메이션 · 5장 교체</div></div>
-      <div class="b"><div class="v">2</div><div class="l">언어 (KO/EN)</div></div>
-      <div class="b"><div class="v">0</div><div class="l">외부 API 키 · 로그인</div></div>
-    </div>
-    <div class="grid2">
-      <div class="card"><h4>① 조작하는 재미</h4><p>드래그로 선수 배치, 슬라이더로 전술 조정 → 보드가 실시간 반응.</p></div>
-      <div class="card"><h4>② 근거 있는 AI</h4><p>설명가능·결정론적 코칭. 신뢰도와 이유를 함께 제시하고 원클릭 적용.</p></div>
-      <div class="card"><h4>③ 실전형 분석</h4><p>체력·출전시간 기반 부하관리와 교체 타이밍 제안(실제 코칭 도구 지향).</p></div>
-      <div class="card"><h4>④ 감정적 보상</h4><p>대체 역사로 결과를 다시 쓰고, 경기 후 리포트·공유 카드로 마무리.</p></div>
-    </div>
-    <div class="callout"><b>한 줄 정의</b> — “실제 경기 데이터 위에서, 누구나 감독이 되어 전술을 조작하고 그 결과를 즉시 확인하며 역사를 다시 쓰는 웹 서비스.”</div>
+  <h2><span class="no">01</span> 서비스 개요</h2>
+  <p class="lead2">실제(또는 시나리오) 경기를 <b>분 단위로 리플레이</b>하며, 사용자가 전술 보드를 지휘하고 AI 코치의 근거 있는 제안을 받아 <b>대체 역사</b>를 만드는 웹 서비스.</p>
+  <div class="kpi">
+    <div class="b"><div class="v">3</div><div class="l">실측/시나리오 경기</div></div>
+    <div class="b"><div class="v">5</div><div class="l">포메이션 · 5장 교체</div></div>
+    <div class="b"><div class="v">2</div><div class="l">언어 (KO/EN)</div></div>
+    <div class="b"><div class="v">0</div><div class="l">외부 API 키 · 로그인</div></div>
   </div>
+  <div class="grid4">
+    <div class="card"><h4>① 조작하는 재미</h4><p>드래그로 배치, 슬라이더로 전술 조정 → 보드가 실시간 반응.</p></div>
+    <div class="card"><h4>② 근거 있는 AI</h4><p>설명가능·결정론적 코칭. 신뢰도·이유 제시, 원클릭 적용.</p></div>
+    <div class="card"><h4>③ 실전형 분석</h4><p>체력·출전시간 기반 부하관리·교체 타이밍 제안.</p></div>
+    <div class="card"><h4>④ 감정적 보상</h4><p>대체 역사로 결과를 다시 쓰고, 리포트·공유 카드로 마무리.</p></div>
+  </div>
+  <div class="callout"><b>한 줄 정의</b> — “실제 경기 데이터 위에서, 누구나 감독이 되어 전술을 조작하고 그 결과를 즉시 확인하며 역사를 다시 쓰는 웹 서비스.”</div>
   <div class="foot"><span>World Cup Director AI · 기획서</span><span>01 · 서비스 개요</span></div>
 </section>
 
 <!-- 2. 감독 경험 설계 의도 -->
 <section class="page">
-  <div class="sec">
-    <h2><span class="no">02</span> ‘감독 경험’ 설계 의도</h2>
-    <p>팬은 경기 결과를 소비할 뿐, 그 결과를 만든 <b>전술적 의사결정 과정</b>에는 개입할 수 없다.
-      본 서비스는 “<b class="k">내가 감독이었다면?</b>”이라는 질문에 답을 주는 것을 목표로, 세 층위의 감독 경험을 설계했다.</p>
-    <div class="grid3">
-      <div class="card"><h4>지휘 (Command)</h4><p>선발 배치·포메이션·전술 슬라이더로 팀의 형태를 직접 만든다. 조작이 즉시 보드에 반영돼 통제감을 준다.</p></div>
-      <div class="card"><h4>판단 (Decide)</h4><p>경기 중 체력·기세·상대 강점을 읽고 교체·전술을 결정한다. AI가 근거를 제시하되 최종 결정은 사용자.</p></div>
-      <div class="card"><h4>책임 (Own)</h4><p>선택의 결과가 승률·스코어·평점으로 돌아온다. 대체 역사로 “내 결정이 만든 결과”를 확인한다.</p></div>
+  <h2><span class="no">02</span> ‘감독 경험’ 설계 의도</h2>
+  <p>팬은 결과를 소비할 뿐, 그 결과를 만든 <b>전술적 의사결정 과정</b>에는 개입할 수 없다. 본 서비스는 “<b class="k">내가 감독이었다면?</b>”에 답을 주기 위해 세 층위의 감독 경험을 설계했다.</p>
+  <div class="grid3">
+    <div class="card"><h4>지휘 (Command)</h4><p>선발 배치·포메이션·전술 슬라이더로 팀의 형태를 직접 만든다. 조작이 즉시 보드에 반영돼 통제감을 준다.</p></div>
+    <div class="card"><h4>판단 (Decide)</h4><p>경기 중 체력·기세·상대 강점을 읽고 교체·전술을 결정한다. AI가 근거를 제시하되 최종 결정은 사용자.</p></div>
+    <div class="card"><h4>책임 (Own)</h4><p>선택의 결과가 승률·스코어·평점으로 돌아온다. 대체 역사로 “내 결정이 만든 결과”를 확인한다.</p></div>
+  </div>
+  <div class="cols" style="margin-top:6px">
+    <div>
+      <h3>설계 원칙</h3>
+      <ul>
+        <li><b>즉각적 피드백</b> — 모든 전술 조작이 보드·승률·대체역사에 실시간 반영.</li>
+        <li><b>근거 우선</b> — AI 제안은 “무엇을·왜”를 신뢰도와 함께(블랙박스 지양).</li>
+        <li><b>실전 은유</b> — 부하관리·교체 타이밍 등 실제 코칭 언어를 차용.</li>
+        <li><b>존중과 정직</b> — 비하 없이 중립 서술, 미확정 결과는 시나리오로 명시.</li>
+      </ul>
     </div>
-    <h3>설계 원칙</h3>
-    <ul>
-      <li><b>즉각적 피드백</b> — 모든 전술 조작은 보드·승률·대체역사에 실시간 반영되어 인과관계를 체감하게 한다.</li>
-      <li><b>근거 우선</b> — AI 제안은 “무엇을·왜”를 신뢰도와 함께 제시(블랙박스 지양). 감독의 학습을 돕는다.</li>
-      <li><b>실전 은유</b> — 부하관리·교체 타이밍 등 실제 코칭 스태프의 의사결정 언어를 그대로 차용한다.</li>
-      <li><b>존중과 정직</b> — 특정 국가·선수를 비하하지 않고, 확정되지 않은 결과는 시나리오로 명시한다.</li>
-    </ul>
-    <div class="callout good"><b>감정 훅</b> — 대표팀의 아쉬웠던 경기를 사용자가 감독이 되어 다시 설계·재시뮬레이션함으로써, 몰입과 재도전의 동기를 제공한다.</div>
+    <div>
+      <div class="callout good"><b>감정 훅</b> — 대표팀의 아쉬웠던 경기를 사용자가 감독이 되어 다시 설계·재시뮬레이션함으로써 몰입과 재도전 동기를 제공한다.</div>
+    </div>
   </div>
   <div class="foot"><span>World Cup Director AI · 기획서</span><span>02 · 감독 경험 설계 의도</span></div>
 </section>
 
 <!-- 3. 페이지 구성 -->
 <section class="page">
-  <div class="sec">
-    <h2><span class="no">03</span> 페이지 구성</h2>
-    <h3>① 홈 (랜딩)</h3>
-    <p class="sub">감독 이름 입력 · 우리 팀/상대/연도 선택 · 실측·시나리오 데이터 태그 표시 · 언어(KO/EN) 토글 · [내 월드컵 시작하기].</p>
-    <h3>② 경기 화면 (메인) — 3열 대시보드 + 오버레이</h3>
-    <div class="region"><span class="lab">상단바</span><span>홈 · 감독명 · 풀타임 리포트 · 사운드 · 현재 포메이션 · 언어 토글</span></div>
-    <div class="region"><span class="lab">좌측열</span><span>스코어보드 · 실시간 승률 곡선 · 기세(모멘텀) 바 · <b>팀 비교(H2H)</b> · 대체 역사</span></div>
-    <div class="region"><span class="lab">중앙열</span><span><b>전술 보드</b>(우리 선수·상대 실제 배치·공) · <b>장면별 데이터 근거 자막</b> · 재생 컨트롤(1~12배속) · 교체 &amp; 체력</span></div>
-    <div class="region"><span class="lab">우측열</span><span><b>교체 추천(부하관리)</b> · AI 코치 · 전술 컨트롤(슬라이더·토글·포메이션) · 실시간 중계</span></div>
-    <div class="region"><span class="lab">오버레이</span><span>골 알림(방송 로어서드) · 교체 토스트 · 경기 후 리포트(평점·MOTM·헤드라인·공유 카드)</span></div>
-    <div class="callout"><b>레이아웃 의도</b> — 좌측=현황 파악, 중앙=조작, 우측=의사결정 보조. 감독의 시선 흐름(파악→조작→결정)에 맞춰 배치.</div>
+  <h2><span class="no">03</span> 페이지 구성</h2>
+  <div class="cols">
+    <div>
+      <h3>① 홈 (랜딩)</h3>
+      <p class="sub">감독 이름 입력 · 우리 팀/상대/연도 선택 · 실측·시나리오 데이터 태그 · 언어(KO/EN) 토글 · [내 월드컵 시작하기].</p>
+      <h3>② 경기 화면 (메인) — 3열 대시보드 + 오버레이</h3>
+      <div class="region"><span class="lab">상단바</span><span>홈 · 감독명 · 풀타임 리포트 · 사운드 · 포메이션 · 언어 토글</span></div>
+      <div class="region"><span class="lab">좌측열</span><span>스코어보드 · 실시간 승률 곡선 · 기세 바 · <b>팀 비교(H2H)</b> · 대체 역사</span></div>
+    </div>
+    <div>
+      <div class="region"><span class="lab">중앙열</span><span><b>전술 보드</b>(우리·상대 배치·공) · <b>데이터 근거 자막</b> · 재생 컨트롤(1~12x) · 교체 &amp; 체력</span></div>
+      <div class="region"><span class="lab">우측열</span><span><b>교체 추천(부하관리)</b> · AI 코치 · 전술 컨트롤 · 실시간 중계</span></div>
+      <div class="region"><span class="lab">오버레이</span><span>골 알림(로어서드) · 교체 토스트 · 경기 후 리포트(평점·MOTM·헤드라인·공유 카드)</span></div>
+    </div>
   </div>
+  <div class="callout"><b>레이아웃 의도</b> — 좌측=현황 파악, 중앙=조작, 우측=의사결정 보조. 감독의 시선 흐름(파악→조작→결정)에 맞춰 배치.</div>
   <div class="foot"><span>World Cup Director AI · 기획서</span><span>03 · 페이지 구성</span></div>
 </section>
 
 <!-- 4. 핵심 인터랙션 명세 -->
 <section class="page">
-  <div class="sec">
-    <h2><span class="no">04</span> 핵심 인터랙션 명세</h2>
-    <table>
-      <tr><th style="width:22%">인터랙션</th><th style="width:22%">조작</th><th>결과 / 반응</th></tr>
-      <tr><td><b>선수 배치</b></td><td>포인터 드래그</td><td>선수 좌표 갱신, 스프링 애니메이션으로 이동</td></tr>
-      <tr><td><b>포메이션 변경</b></td><td>클릭 (433/4231/352/343/541)</td><td>11인 슬롯으로 즉시 재배치</td></tr>
-      <tr><td><b>전술 슬라이더</b></td><td>드래그 (공격·라인·압박·템포·폭)</td><td>보드 선수 간격/라인이 실시간 변형 + 엔진 계수 반영</td></tr>
-      <tr><td><b>전술 토글</b></td><td>클릭 (역습·전방압박·오프사이드트랩)</td><td>시뮬레이션 계수 on/off</td></tr>
-      <tr><td><b>경기 재생</b></td><td>재생/일시정지·스크럽·배속</td><td>분 단위 진행(1~12x), 스코어·지표·승률 갱신</td></tr>
-      <tr><td><b>AI 전술 즉시 적용</b></td><td>AI 코치 카드 내 버튼 클릭</td><td>포메이션·슬라이더를 추천값으로 <b>원클릭</b> 반영</td></tr>
-      <tr><td><b>교체 추천 실행</b></td><td>추천 카드 [OUT ➔ IN] 클릭</td><td>부하관리 근거로 최적 대체자 즉시 투입 + 토스트</td></tr>
-      <tr><td><b>수동 교체</b></td><td>선수 선택 → 벤치 후보 클릭</td><td>선수 스왑, 투입 선수 체력 리셋</td></tr>
-      <tr><td><b>언어 전환</b></td><td>KO/EN 토글 클릭</td><td>UI·코치·중계 전체 즉시 전환</td></tr>
-      <tr><td><b>사운드</b></td><td>토글 클릭</td><td>관중 앰비언스·심판 호루라기·골 함성(Web Audio)</td></tr>
-      <tr><td><b>공유</b></td><td>리포트 [공유 카드 저장]</td><td>결과 카드 PNG 다운로드 · 요약 클립보드 복사</td></tr>
-    </table>
-    <p class="sub">※ 핵심 평가 항목인 <b>드래그·클릭·배치</b>를 모두 충족하며, 모든 인터랙션은 브라우저에서 즉시 동작합니다.</p>
-  </div>
+  <h2><span class="no">04</span> 핵심 인터랙션 명세</h2>
+  <table>
+    <tr><th style="width:18%">인터랙션</th><th style="width:26%">조작</th><th>결과 / 반응</th></tr>
+    <tr><td><b>선수 배치</b></td><td>포인터 드래그</td><td>선수 좌표 갱신, 스프링 애니메이션 이동</td></tr>
+    <tr><td><b>포메이션 변경</b></td><td>클릭 (433/4231/352/343/541)</td><td>11인 슬롯으로 즉시 재배치</td></tr>
+    <tr><td><b>전술 슬라이더</b></td><td>드래그 (공격·라인·압박·템포·폭)</td><td>보드 선수 간격/라인 실시간 변형 + 엔진 계수 반영</td></tr>
+    <tr><td><b>전술 토글</b></td><td>클릭 (역습·전방압박·오프사이드트랩)</td><td>시뮬레이션 계수 on/off</td></tr>
+    <tr><td><b>경기 재생</b></td><td>재생/일시정지·스크럽·배속</td><td>분 단위 진행(1~12x), 스코어·지표·승률 갱신</td></tr>
+    <tr><td><b>AI 전술 즉시 적용</b></td><td>AI 코치 카드 버튼 클릭</td><td>포메이션·슬라이더를 추천값으로 <b>원클릭</b> 반영</td></tr>
+    <tr><td><b>교체 추천 실행</b></td><td>추천 카드 [OUT ➔ IN] 클릭</td><td>부하관리 근거로 최적 대체자 즉시 투입 + 토스트</td></tr>
+    <tr><td><b>수동 교체</b></td><td>선수 선택 → 벤치 후보 클릭</td><td>선수 스왑, 투입 선수 체력 리셋</td></tr>
+    <tr><td><b>언어 전환 / 사운드</b></td><td>토글 클릭</td><td>UI·코치·중계 전체 KO/EN · 관중·호루라기·골 함성</td></tr>
+    <tr><td><b>공유</b></td><td>리포트 [공유 카드 저장]</td><td>결과 카드 PNG 다운로드 · 요약 클립보드 복사</td></tr>
+  </table>
+  <p class="sub">※ 핵심 평가 항목인 <b>드래그·클릭·배치</b>를 모두 충족하며, 모든 인터랙션은 브라우저에서 즉시 동작합니다.</p>
   <div class="foot"><span>World Cup Director AI · 기획서</span><span>04 · 핵심 인터랙션 명세</span></div>
 </section>
 
 <!-- 5. 데이터 활용 방식 -->
 <section class="page">
-  <div class="sec">
-    <h2><span class="no">05</span> 데이터 활용 방식</h2>
-    <h3>데이터 스키마 (StatsBomb 호환)</h3>
-    <table>
-      <tr><th style="width:26%">구조</th><th>내용</th></tr>
-      <tr><td><b>Team / Player</b></td><td>팀(색·코드·국문/영문명), 선수(등번호·역할·좌표·기량·체력·스타 여부)</td></tr>
-      <tr><td><b>MatchEvent</b></td><td>분(minute)·팀(side)·유형(goal/shot/chance/corner/card/sub/whistle)·선수·<b>xG</b>·해설(한/영)</td></tr>
-      <tr><td><b>MatchData</b></td><td>라인업·벤치·타임라인·실제 스코어·서사·데이터 출처(real/scenario)</td></tr>
-    </table>
-    <h3>활용 로직</h3>
-    <ul>
-      <li><b>경기 엔진</b> — 타임라인을 특정 분까지 접어 스냅샷(스코어·xG·점유율·기세) 산출, 로지스틱 <b>승률 곡선</b> 생성.</li>
-      <li><b>대체 역사</b> — 실제 xG 총합을 전술 계수로 보정 → <b>포아송 재시뮬레이션</b>. 시드 고정으로 재현 가능.</li>
-      <li><b>체력 모델</b> — 역할×전술 강도(압박·템포·라인) 기반 분당 소모율로 스태미나 계산.</li>
-      <li><b>부하관리 분석</b> — 출전시간·체력 임계(45%) 도달 예상 시점·점수 상황을 종합해 교체 우선순위·최적 대체자 산출.</li>
-    </ul>
-    <h3>데이터 출처 &amp; 확장</h3>
-    <ul>
-      <li><b>실측</b>: 2018·2022 월드컵 결승 이벤트 · <b>시나리오</b>: 2026(태그 명시).</li>
-      <li>외부 API·키 불필요(전량 내장) → 심사자가 <b>키 없이</b> 모든 기능 확인 가능(규정 부합).</li>
-      <li>StatsBomb 로더로 교체 시 UI 변경 없이 공식 데이터 연동 가능.</li>
-    </ul>
-    <div class="callout good"><b>장면별 데이터 근거 자막</b> — 경기 화면은 현재 장면(상황·공격·득점·진행)마다
-      ‘<b>✓ 사용 데이터</b>’와 ‘<b>⚠ 제외·한계</b>(추정 대체 포함)’를 자막처럼 함께 표기한다.
-      심사자·시청자가 기능 장면과 데이터 근거·한계를 <b>동시에</b> 확인할 수 있어, 과장 없는 데이터 투명성을 보장한다.</div>
+  <h2><span class="no">05</span> 데이터 활용 방식</h2>
+  <div class="cols">
+    <div>
+      <h3>데이터 스키마 (StatsBomb 호환)</h3>
+      <table>
+        <tr><th style="width:34%">구조</th><th>내용</th></tr>
+        <tr><td><b>Team / Player</b></td><td>팀(색·코드·국/영문명), 선수(번호·역할·좌표·기량·체력·스타)</td></tr>
+        <tr><td><b>MatchEvent</b></td><td>분·팀·유형(goal/shot/…)·선수·<b>xG</b>·해설(한/영)</td></tr>
+        <tr><td><b>MatchData</b></td><td>라인업·벤치·타임라인·스코어·서사·출처(real/scenario)</td></tr>
+      </table>
+      <h3>활용 로직</h3>
+      <ul>
+        <li><b>경기 엔진</b> — 타임라인 스냅샷(스코어·xG·점유율·기세) + 로지스틱 승률 곡선.</li>
+        <li><b>대체 역사</b> — 실제 xG를 전술 계수로 보정한 <b>포아송 재시뮬</b>(시드 고정, 재현 가능).</li>
+        <li><b>체력 모델</b> — 역할×전술 강도 기반 분당 소모율.</li>
+        <li><b>부하관리</b> — 출전시간·체력 임계 도달 시점·점수 상황 종합 → 교체 우선순위.</li>
+      </ul>
+    </div>
+    <div>
+      <h3>데이터 출처 &amp; 확장</h3>
+      <ul>
+        <li><b>실측</b>: 2018·2022 결승 · <b>시나리오</b>: 2026(태그 명시).</li>
+        <li>외부 API·키 불필요(전량 내장) → 심사자가 <b>키 없이</b> 모든 기능 확인(규정 부합).</li>
+        <li>StatsBomb 로더로 교체 시 UI 변경 없이 공식 데이터 연동.</li>
+      </ul>
+      <div class="callout good"><b>장면별 데이터 근거 자막</b> — 경기 화면은 장면(상황·공격·득점·진행)마다 ‘<b>사용 데이터</b>’와 ‘<b>제외·한계</b>(추정 대체 포함)’를 자막처럼 함께 표기한다. 심사자·시청자가 기능과 데이터 근거를 <b>동시에</b> 확인해 과장 없는 투명성을 보장한다.</div>
+    </div>
   </div>
   <div class="foot"><span>World Cup Director AI · 기획서</span><span>05 · 데이터 활용 방식</span></div>
 </section>
 
-<!-- 6. 주요 사용 흐름 -->
+<!-- 6. 사용 흐름 · 차별점 · 규정 -->
 <section class="page">
-  <div class="sec">
-    <h2><span class="no">06</span> 주요 사용 흐름</h2>
-    <div class="flow">
-      <div class="step"><div class="n">1</div><div class="t">감독 이름·팀·상대·연도 선택</div></div>
-      <div class="step"><div class="n">2</div><div class="t">전술 보드 배치 · 슬라이더 조정</div></div>
-      <div class="step"><div class="n">3</div><div class="t">재생 → AI 코치 약점·교체 경고</div></div>
-      <div class="step"><div class="n">4</div><div class="t">교체 실행 · 전술 즉시 적용</div></div>
-      <div class="step"><div class="n">5</div><div class="t">풀타임 리포트 · 대체역사 · 공유</div></div>
+  <h2><span class="no">06</span> 주요 사용 흐름 · 차별점 · 규정 준수</h2>
+  <div class="flow">
+    <div class="step"><div class="n">1</div><div class="t">감독 이름·팀·상대·연도 선택</div></div>
+    <div class="step"><div class="n">2</div><div class="t">전술 보드 배치 · 슬라이더 조정</div></div>
+    <div class="step"><div class="n">3</div><div class="t">재생 → AI 코치 약점·교체 경고</div></div>
+    <div class="step"><div class="n">4</div><div class="t">교체 실행 · 전술 즉시 적용</div></div>
+    <div class="step"><div class="n">5</div><div class="t">풀타임 리포트 · 대체역사 · 공유</div></div>
+  </div>
+  <div class="cols" style="margin-top:8px">
+    <div>
+      <h3>차별점 &amp; 기술</h3>
+      <div class="grid2">
+        <div class="card"><h4>‘게임’ 아닌 ‘분석 도구’</h4><p>절제된 방송·애널리스트 톤, 실제 코칭 로드매니지먼트 지향.</p></div>
+        <div class="card"><h4>설명가능 결정론 AI</h4><p>근거·신뢰도 제시, 같은 입력=같은 결과 → 시연 재현성.</p></div>
+      </div>
+      <p style="margin-top:8px">
+        <span class="tag">Next.js 14</span><span class="tag">TypeScript</span><span class="tag">TailwindCSS</span>
+        <span class="tag">Framer Motion</span><span class="tag">Zustand</span><span class="tag">Canvas / Web Audio</span>
+      </p>
+      <p class="sub"><b>로드맵</b> — 공식 2026 데이터 연동 · 히트맵/패스네트워크 · 벤치 드래그 교체 · 경기/시대 확장.</p>
     </div>
-    <p class="sub">기본 시연 시나리오: <b>대한민국 vs 남아프리카공화국 (2026, 시나리오)</b> — 아쉬운 결과를 감독이 되어 다시 쓴다.</p>
-  </div>
-
-  <div class="sec">
-    <h2><span class="no">07</span> 차별점 &amp; 기술</h2>
-    <div class="grid2">
-      <div class="card"><h4>‘게임’ 아닌 ‘분석 도구’</h4><p>절제된 방송·애널리스트 톤. 실제 코칭 로드매니지먼트 지향.</p></div>
-      <div class="card"><h4>설명가능 결정론 AI</h4><p>근거·신뢰도 제시, 같은 입력=같은 결과 → 시연 재현성.</p></div>
+    <div>
+      <h3>규정 준수</h3>
+      <table>
+        <tr><th style="width:44%">규정</th><th>대응</th></tr>
+        <tr><td>설치·회원가입·결제 없이 심사</td><td class="ok">✓ 브라우저 직접 실행</td></tr>
+        <tr><td>외부 API 키 불필요</td><td class="ok">✓ 전량 내장 데이터</td></tr>
+        <tr><td>주요 브라우저 정상 실행</td><td class="ok">✓ 표준 웹(Next.js)</td></tr>
+        <tr><td>저작권·라이선스</td><td class="ok">✓ 자체 데이터/SVG·오픈 폰트</td></tr>
+        <tr><td>국가·선수 비하 금지</td><td class="ok">✓ 중립·존중, 시나리오 명시</td></tr>
+      </table>
     </div>
-    <p style="margin-top:8px">
-      <span class="tag">Next.js 14</span><span class="tag">TypeScript</span><span class="tag">TailwindCSS</span>
-      <span class="tag">Framer Motion</span><span class="tag">Zustand</span><span class="tag">Canvas / Web Audio</span>
-    </p>
   </div>
-
-  <div class="sec">
-    <h2><span class="no">08</span> 규정 준수 &amp; 로드맵</h2>
-    <table>
-      <tr><th style="width:32%">규정</th><th>대응</th></tr>
-      <tr><td>설치·회원가입·결제 없이 심사</td><td class="ok">✓ 브라우저 직접 실행, 로그인/결제 없음</td></tr>
-      <tr><td>외부 API 키 불필요</td><td class="ok">✓ 전량 내장 데이터, 키 요구 없음</td></tr>
-      <tr><td>주요 브라우저 정상 실행</td><td class="ok">✓ 표준 웹(Next.js) 기반</td></tr>
-      <tr><td>저작권·라이선스</td><td class="ok">✓ 자체 데이터/SVG/이모지·오픈 폰트</td></tr>
-      <tr><td>국가·선수 비하 금지</td><td class="ok">✓ 중립·존중 서술, 시나리오 명시</td></tr>
-    </table>
-    <p class="sub" style="margin-top:6px"><b>로드맵</b> — 공식 2026 데이터 연동 · 히트맵/패스네트워크 · 벤치 드래그 교체 · 경기/시대 확장.</p>
-  </div>
-  <div class="foot"><span>World Cup Director AI · 기획서</span><span>06 · 07 · 08 · 흐름 · 차별점 · 규정</span></div>
+  <div class="foot"><span>World Cup Director AI · 기획서</span><span>06 · 흐름 · 차별점 · 규정</span></div>
 </section>
 
 </body>
