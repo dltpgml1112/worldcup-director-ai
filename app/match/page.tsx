@@ -20,6 +20,7 @@ import TacticalPitch from "@/components/TacticalPitch";
 import TacticalControls from "@/components/TacticalControls";
 import AICoachPanel from "@/components/AICoachPanel";
 import SubAdvisor from "@/components/SubAdvisor";
+import DataProvenance from "@/components/DataProvenance";
 import SubstitutionPanel from "@/components/SubstitutionPanel";
 import PostMatchReport from "@/components/PostMatchReport";
 
@@ -180,6 +181,9 @@ export default function MatchPage() {
             </div>
             <TacticalPitch />
           </div>
+
+          {/* 장면별 데이터 근거·한계 자막 */}
+          <DataProvenance match={match} minute={minute} />
 
           {/* 재생 컨트롤 */}
           <div className="glass-strong rounded-2xl p-4">
