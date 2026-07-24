@@ -29,11 +29,8 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden">
-      <CrowdCanvas className="absolute inset-0 h-full w-full opacity-70" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-night-900/40 to-night-900" />
-
-      {/* 조명 */}
-      <div className="pointer-events-none absolute -top-40 left-1/2 h-96 w-[80vw] -translate-x-1/2 rounded-full bg-neon-ice/10 blur-3xl" />
+      <CrowdCanvas className="absolute inset-0 h-full w-full opacity-20" />
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-surface-base/40 via-surface-base/60 to-surface-base" />
 
       <div className="absolute right-4 top-4 z-20">
         <LangToggle />
@@ -47,8 +44,8 @@ export default function Home() {
           className="text-center"
         >
           <div className="chip mx-auto mb-4 bg-white/10 text-white/70">🏆 {t(lang, "home.badge")}</div>
-          <h1 className="font-display text-5xl font-bold uppercase leading-none tracking-tight sm:text-7xl">
-            World Cup <span className="bg-gradient-to-r from-neon-grass to-neon-gold bg-clip-text text-transparent">Director</span> AI
+          <h1 className="font-display text-5xl font-bold uppercase leading-none tracking-tight text-ink-primary sm:text-7xl">
+            World Cup <span className="text-team-home">Director</span> AI
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-lg text-white/60">{t(lang, "home.tagline")}</p>
         </motion.div>
@@ -89,9 +86,8 @@ export default function Home() {
             </div>
           )}
 
-          <motion.button whileTap={{ scale: 0.97 }} onClick={start} className="btn-primary mt-6 w-full">
+          <motion.button whileTap={{ scale: 0.98 }} onClick={start} className="btn-primary mt-6 w-full !py-3">
             <span className="relative z-10">{t(lang, "home.start")}</span>
-            <span className="absolute inset-0 -skew-x-12 bg-white/30 mix-blend-overlay animate-sweep" />
           </motion.button>
         </motion.div>
 

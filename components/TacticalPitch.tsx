@@ -104,11 +104,11 @@ export default function TacticalPitch() {
   return (
     <div
       ref={ref}
-      className="relative aspect-[3/4] w-full select-none overflow-hidden rounded-2xl border border-white/10"
+      className="relative aspect-[3/4] w-full select-none overflow-hidden rounded-lg border border-surface-line"
       style={{
         touchAction: "none",
         background:
-          "repeating-linear-gradient(0deg,#0e7a3d,#0e7a3d 7.14%,#0c6f38 7.14%,#0c6f38 14.28%)",
+          "repeating-linear-gradient(0deg,#15241c,#15241c 7.14%,#122019 7.14%,#122019 14.28%)",
       }}
       onPointerMove={(e) => {
         if (!drag) return;

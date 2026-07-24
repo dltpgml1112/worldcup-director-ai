@@ -8,18 +8,18 @@ import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate } from "@/lib/matchEngine";
 import { startCrowd, stopCrowd, setCrowdLevel, goalRoar } from "@/lib/audio";
 import { t, type Lang } from "@/lib/i18n";
-import type { Player, MatchEvent } from "@/lib/types";
+import type { MatchEvent } from "@/lib/types";
 import LangToggle from "@/components/LangToggle";
 import GoalCelebration from "@/components/GoalCelebration";
-import PlayerCard from "@/components/PlayerCard";
 import Scoreboard from "@/components/Scoreboard";
-import StatBars from "@/components/StatBars";
+import TeamComparison from "@/components/TeamComparison";
 import MomentumBar from "@/components/MomentumBar";
 import WinProbChart from "@/components/WinProbChart";
 import EventFeed from "@/components/EventFeed";
 import TacticalPitch from "@/components/TacticalPitch";
 import TacticalControls from "@/components/TacticalControls";
 import AICoachPanel from "@/components/AICoachPanel";
+import SubAdvisor from "@/components/SubAdvisor";
 import SubstitutionPanel from "@/components/SubstitutionPanel";
 import PostMatchReport from "@/components/PostMatchReport";
 
@@ -148,7 +148,7 @@ export default function MatchPage() {
           <Scoreboard match={match} snap={snap} />
           <WinProbChart match={match} tactics={tactics} minute={minute} />
           <MomentumBar momentum={snap.momentum} homeCode={match.home.code} awayCode={match.away.code} />
-          <StatBars match={match} snap={snap} />
+          <TeamComparison match={match} snap={snap} minute={minute} />
           <AlternateHistory
             lang={lang}
             realScore={match.finalScore}
@@ -200,8 +200,9 @@ export default function MatchPage() {
           <SubstitutionPanel />
         </div>
 
-        {/* 우: 커맨더리 + AI 코치 + 컨트롤 */}
+        {/* 우: 교체 추천(부하관리) + AI 코치 + 컨트롤 */}
         <div className="space-y-4 xl:col-span-4">
+          <SubAdvisor match={match} snap={snap} minute={minute} />
           <AICoachPanel match={match} snap={snap} tactics={tactics} formation={formation} />
           <TacticalControls />
           <EventFeed match={match} minute={minute} />
@@ -226,55 +227,50 @@ export default function MatchPage() {
         accent={celebration?.side === "away" ? match.away.primary : match.home.primary}
       />
 
-      {/* 교체 투입 선수 카드 공개 (FUT 팩 오픈 느낌) */}
-      <SubReveal lang={lang} flag={match.home.flag} />
+      {/* 교체 알림 (방송 로어서드) */}
+      <SubToast lang={lang} />
     </main>
   );
 }
 
-/** 교체로 방금 투입된 선수의 FUT 카드를 잠깐 공개 */
-function SubReveal({ lang, flag }: { lang: Lang; flag: string }) {
-  const players = useGame((s) => s.players);
+/** 교체 발생 시 방송 스타일 토스트 (선수 IN/OUT) */
+function SubToast({ lang }: { lang: Lang }) {
   const subLog = useGame((s) => s.subLog);
-  const [reveal, setReveal] = useState<Player | null>(null);
+  const [toast, setToast] = useState<{ off: string; on: string; minute: number } | null>(null);
   const prevLen = useRef(subLog.length);
 
   useEffect(() => {
     if (subLog.length > prevLen.current) {
       const last = subLog[subLog.length - 1];
-      const p = players.find((pl) => pl.num === last.onNum && pl.name === last.onName) ?? null;
-      if (p) {
-        setReveal(p);
-        const id = setTimeout(() => setReveal(null), 2800);
-        return () => clearTimeout(id);
-      }
+      const off = lang === "ko" && last.offNameKo ? last.offNameKo : last.offName;
+      const on = lang === "ko" && last.onNameKo ? last.onNameKo : last.onName;
+      setToast({ off, on, minute: last.minute });
+      const id = setTimeout(() => setToast(null), 2600);
+      prevLen.current = subLog.length;
+      return () => clearTimeout(id);
     }
     prevLen.current = subLog.length;
-  }, [subLog, players]);
+  }, [subLog, lang]);
 
   return (
     <AnimatePresence>
-      {reveal && (
+      {toast && (
         <motion.div
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
-          exit={{ opacity: 0 }}
-          className="pointer-events-none fixed inset-0 z-[55] grid place-items-center"
-          onClick={() => setReveal(null)}
+          initial={{ y: 80, opacity: 0 }}
+          animate={{ y: 0, opacity: 1 }}
+          exit={{ y: 80, opacity: 0 }}
+          transition={{ type: "spring", stiffness: 260, damping: 26 }}
+          className="pointer-events-none fixed inset-x-0 bottom-8 z-[55] flex justify-center px-4"
         >
-          <div className="absolute inset-0 bg-night-900/70" />
-          <motion.div
-            initial={{ scale: 0.6, rotateY: 90, opacity: 0 }}
-            animate={{ scale: 1, rotateY: 0, opacity: 1 }}
-            exit={{ scale: 0.8, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 180, damping: 16 }}
-            className="relative"
-          >
-            <div className="mb-2 text-center font-display text-sm font-bold uppercase tracking-widest text-neon-grass">
-              {lang === "ko" ? "🔁 교체 투입" : "🔁 SUBSTITUTION"}
-            </div>
-            <PlayerCard player={reveal} lang={lang} flag={flag} />
-          </motion.div>
+          <div className="flex items-center gap-3 rounded-lg border border-surface-line bg-surface-raised/95 px-5 py-3 shadow-xl backdrop-blur" style={{ borderLeft: "4px solid #3987e5" }}>
+            <span className="font-display text-sm font-bold uppercase tracking-wide text-team-home">
+              {lang === "ko" ? "교체" : "SUB"}
+            </span>
+            <span className="metric-num rounded bg-surface-panel px-2 py-0.5 font-display text-sm font-bold text-ink-secondary">{toast.minute}'</span>
+            <span className="text-sm font-semibold text-status-critical">↓ {toast.off}</span>
+            <span className="text-ink-muted">→</span>
+            <span className="text-sm font-semibold text-status-good">↑ {toast.on}</span>
+          </div>
         </motion.div>
       )}
     </AnimatePresence>
