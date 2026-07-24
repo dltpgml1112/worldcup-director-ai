@@ -158,7 +158,7 @@
     <h3>② 경기 화면 (메인) — 3열 대시보드 + 오버레이</h3>
     <div class="region"><span class="lab">상단바</span><span>홈 · 감독명 · 풀타임 리포트 · 사운드 · 현재 포메이션 · 언어 토글</span></div>
     <div class="region"><span class="lab">좌측열</span><span>스코어보드 · 실시간 승률 곡선 · 기세(모멘텀) 바 · <b>팀 비교(H2H)</b> · 대체 역사</span></div>
-    <div class="region"><span class="lab">중앙열</span><span><b>전술 보드</b>(우리 선수·상대 실제 배치·공) · 재생 컨트롤(재생/스크럽/1~12배속) · 교체 &amp; 체력</span></div>
+    <div class="region"><span class="lab">중앙열</span><span><b>전술 보드</b>(우리 선수·상대 실제 배치·공) · <b>장면별 데이터 근거 자막</b> · 재생 컨트롤(1~12배속) · 교체 &amp; 체력</span></div>
     <div class="region"><span class="lab">우측열</span><span><b>교체 추천(부하관리)</b> · AI 코치 · 전술 컨트롤(슬라이더·토글·포메이션) · 실시간 중계</span></div>
     <div class="region"><span class="lab">오버레이</span><span>골 알림(방송 로어서드) · 교체 토스트 · 경기 후 리포트(평점·MOTM·헤드라인·공유 카드)</span></div>
     <div class="callout"><b>레이아웃 의도</b> — 좌측=현황 파악, 중앙=조작, 우측=의사결정 보조. 감독의 시선 흐름(파악→조작→결정)에 맞춰 배치.</div>
@@ -213,6 +213,9 @@
       <li>외부 API·키 불필요(전량 내장) → 심사자가 <b>키 없이</b> 모든 기능 확인 가능(규정 부합).</li>
       <li>StatsBomb 로더로 교체 시 UI 변경 없이 공식 데이터 연동 가능.</li>
     </ul>
+    <div class="callout good"><b>장면별 데이터 근거 자막</b> — 경기 화면은 현재 장면(상황·공격·득점·진행)마다
+      ‘<b>✓ 사용 데이터</b>’와 ‘<b>⚠ 제외·한계</b>(추정 대체 포함)’를 자막처럼 함께 표기한다.
+      심사자·시청자가 기능 장면과 데이터 근거·한계를 <b>동시에</b> 확인할 수 있어, 과장 없는 데이터 투명성을 보장한다.</div>
   </div>
   <div class="foot"><span>World Cup Director AI · 기획서</span><span>05 · 데이터 활용 방식</span></div>
 </section>
