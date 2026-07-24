@@ -1,0 +1,257 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>World Cup Director AI — 기획서</title>
+<style>
+  :root{
+    --blue:#2f6fd0; --blue-soft:#eaf1fb; --ink:#141922; --sub:#4b5563;
+    --muted:#8a94a3; --line:#e3e7ee; --panel:#f7f9fc; --orange:#c9591f;
+    --good:#0f8a4a; --warn:#b8860b;
+  }
+  @page{ size:A4; margin:0; }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;}
+  body{
+    font-family:"Malgun Gothic","맑은 고딕",system-ui,-apple-system,"Segoe UI",sans-serif;
+    color:var(--ink); font-size:10.5pt; line-height:1.6;
+    -webkit-print-color-adjust:exact; print-color-adjust:exact;
+  }
+  .page{
+    width:210mm; min-height:297mm; padding:18mm 18mm 16mm; margin:0 auto;
+    background:#fff; position:relative; page-break-after:always;
+  }
+  .page:last-child{page-break-after:auto;}
+
+  /* 표지 */
+  .cover{display:flex; flex-direction:column; justify-content:center; min-height:261mm;}
+  .badge{display:inline-block; align-self:flex-start; background:var(--blue-soft); color:var(--blue);
+    font-weight:700; font-size:9pt; letter-spacing:.06em; padding:5px 12px; border-radius:6px; text-transform:uppercase;}
+  .cover h1{font-size:34pt; line-height:1.1; margin:18px 0 6px; letter-spacing:-.01em;}
+  .cover h1 .accent{color:var(--blue);}
+  .cover .kor{font-size:16pt; color:var(--sub); font-weight:600; margin-bottom:22px;}
+  .cover .lead{font-size:12pt; color:var(--sub); max-width:150mm; line-height:1.7;}
+  .cover .lead b{color:var(--ink);}
+  .cover .meta{margin-top:34px; border-top:2px solid var(--line); padding-top:16px;
+    display:grid; grid-template-columns:repeat(2,1fr); gap:8px 28px; font-size:10pt; color:var(--sub);}
+  .cover .meta b{color:var(--ink); display:inline-block; width:78px;}
+  .cover .disclaimer{margin-top:20px; background:#fff8ec; border:1px solid #f0dcae; border-radius:8px;
+    padding:12px 14px; font-size:9pt; color:#7a5b12; line-height:1.6;}
+
+  /* 본문 공통 */
+  h2{font-size:15pt; margin:0 0 4px; padding-bottom:8px; border-bottom:2px solid var(--blue);
+    display:flex; align-items:baseline; gap:10px;}
+  h2 .no{color:var(--blue); font-weight:800;}
+  .sec{margin-bottom:22px;}
+  h3{font-size:11.5pt; margin:16px 0 4px; color:var(--ink);}
+  p{margin:6px 0;}
+  .sub{color:var(--sub);}
+  ul{margin:6px 0; padding-left:18px;}
+  li{margin:3px 0;}
+  b.k{color:var(--blue);}
+  .lead2{font-size:11pt; color:var(--sub); margin:10px 0 4px;}
+
+  .grid2{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+  .card{background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:12px 14px;}
+  .card h4{margin:0 0 4px; font-size:10.5pt; color:var(--blue);}
+  .card p{margin:0; font-size:9.5pt; color:var(--sub); line-height:1.55;}
+
+  table{width:100%; border-collapse:collapse; margin:8px 0; font-size:9.5pt;}
+  th,td{text-align:left; padding:8px 10px; border-bottom:1px solid var(--line); vertical-align:top;}
+  th{background:var(--panel); color:var(--sub); font-weight:700; font-size:8.5pt; text-transform:uppercase; letter-spacing:.04em;}
+  td b{color:var(--ink);}
+
+  .callout{background:var(--blue-soft); border-left:3px solid var(--blue); border-radius:0 8px 8px 0;
+    padding:12px 16px; margin:10px 0; font-size:10pt;}
+  .callout.good{background:#eafaf0; border-color:var(--good);}
+  .callout.warn{background:#fff8ec; border-color:var(--warn); color:#5f4a11;}
+
+  .flow{display:grid; grid-template-columns:repeat(5,1fr); gap:8px; margin:10px 0;}
+  .step{background:#fff; border:1px solid var(--line); border-radius:8px; padding:10px 8px; text-align:center;}
+  .step .n{display:inline-block; width:20px;height:20px;line-height:20px; border-radius:50%;
+    background:var(--blue); color:#fff; font-size:9pt; font-weight:700; margin-bottom:6px;}
+  .step .t{font-size:8.7pt; color:var(--sub); line-height:1.35;}
+
+  .foot{position:absolute; left:18mm; right:18mm; bottom:9mm; display:flex; justify-content:space-between;
+    font-size:8pt; color:var(--muted); border-top:1px solid var(--line); padding-top:6px;}
+  .kpi{display:flex; gap:10px; margin:8px 0;}
+  .kpi .b{flex:1; background:var(--panel); border:1px solid var(--line); border-radius:8px; padding:10px; text-align:center;}
+  .kpi .v{font-size:16pt; font-weight:800; color:var(--blue); line-height:1;}
+  .kpi .l{font-size:8.5pt; color:var(--sub); margin-top:4px;}
+  .tag{display:inline-block; background:#eef2f7; color:var(--sub); border-radius:5px; padding:2px 8px; font-size:8.5pt; margin:2px 3px 2px 0;}
+</style>
+</head>
+<body>
+
+<!-- 표지 -->
+<section class="page cover">
+  <span class="badge">2026 · 축구 전술 웹 · 해커톤 기획서</span>
+  <h1>World Cup <span class="accent">Director</span> AI</h1>
+  <div class="kor">월드컵 디렉터 AI — 당신이 감독이라면?</div>
+  <p class="lead">
+    2026 월드컵을 무대로, 사용자가 <b>직접 감독이 되어</b> 전술을 설계하고 선수를 배치하는
+    <b>동적 전술 시뮬레이터</b>. 실제 코칭 스태프의 <b>부하관리·교체 판단</b>을 데이터로 보조하고,
+    한국 대표팀의 아쉬웠던 경기를 <b>대체 역사</b>로 다시 쓴다.
+  </p>
+  <div class="meta">
+    <div><b>대회</b> World Cup Manager / Tactics Web Challenge</div>
+    <div><b>분야</b> 축구 전술 · AI · 데이터 시각화</div>
+    <div><b>형태</b> 반응형 웹 애플리케이션</div>
+    <div><b>스택</b> Next.js 14 · TypeScript · Tailwind</div>
+    <div><b>언어</b> 한국어 / English (전체 현지화)</div>
+    <div><b>상태</b> 동작하는 프로토타입 (빌드 통과)</div>
+  </div>
+  <div class="disclaimer">
+    <b>데이터 고지</b> — 2026 경기 데이터는 실제 결과가 확정 반영되지 않은 <b>시나리오(가상) 데이터</b>이며
+    앱 내 ‘시나리오 데이터’ 태그로 명시됩니다. 2018·2022 결승은 실측 이벤트 기반입니다. 데이터 구조는
+    StatsBomb Open Data 스키마와 호환되어, 공식 데이터셋 제공 시 즉시 교체 가능합니다.
+  </div>
+</section>
+
+<!-- 1. 배경 & 문제정의 -->
+<section class="page">
+  <div class="sec">
+    <h2><span class="no">01</span> 배경 &amp; 문제 정의</h2>
+    <p class="lead2">“결과는 봤지만, <b>내가 감독이었다면?</b>은 아무도 답해주지 않는다.”</p>
+    <p>
+      팬은 경기 결과를 소비할 뿐, 그 결과를 만든 <b>전술적 의사결정 과정</b>에는 개입할 수 없다.
+      특히 2026 월드컵에서 한국 대표팀은 <b class="k">피파 랭킹이 낮은 상대에게 패해 조별리그에서 탈락</b>하며
+      큰 아쉬움을 남겼고, 전술·교체 타이밍에 대한 대중의 논쟁이 뜨거웠다.
+    </p>
+    <div class="grid2">
+      <div class="card"><h4>팬 관점</h4><p>“그때 왜 그 선수를 안 뺐지?” — 감정은 크지만 직접 바꿔볼 도구가 없다.</p></div>
+      <div class="card"><h4>현장 관점</h4><p>교체·부하관리는 감(感)에 의존하기 쉽다. 체력·출전시간의 정량적 근거가 필요하다.</p></div>
+      <div class="card"><h4>데이터 관점</h4><p>이벤트·xG·라인업 데이터는 존재하나, 비전문가가 다룰 인터랙티브 도구는 드물다.</p></div>
+      <div class="card"><h4>교육 관점</h4><p>전술 슬라이더 하나가 경기에 미치는 영향을 ‘보면서’ 배우는 경험이 부족하다.</p></div>
+    </div>
+    <div class="callout">
+      <b>핵심 질문</b> — 실제 경기 데이터 위에서, 누구나 감독이 되어 전술을 조작하고 그 결과를
+      즉시 확인하며 <b>역사를 다시 쓸 수</b> 있다면?
+    </div>
+  </div>
+  <div class="foot"><span>World Cup Director AI · 기획서</span><span>01 · 배경 &amp; 문제 정의</span></div>
+</section>
+
+<!-- 2. 솔루션 -->
+<section class="page">
+  <div class="sec">
+    <h2><span class="no">02</span> 솔루션 &amp; 핵심 가치</h2>
+    <p>
+      <b>World Cup Director AI</b>는 실제(또는 시나리오) 경기를 분 단위로 리플레이하며, 사용자가
+      전술 보드를 지휘하고 AI 코치의 근거 있는 제안을 받아 <b>대체 역사</b>를 만드는 웹 서비스다.
+    </p>
+    <div class="kpi">
+      <div class="b"><div class="v">3</div><div class="l">실측/시나리오 경기</div></div>
+      <div class="b"><div class="v">5</div><div class="l">포메이션 · 5장 교체</div></div>
+      <div class="b"><div class="v">2</div><div class="l">언어 (KO/EN)</div></div>
+      <div class="b"><div class="v">100%</div><div class="l">브라우저 구동</div></div>
+    </div>
+    <div class="grid2">
+      <div class="card"><h4>① 조작하는 재미</h4><p>드래그로 선수 배치, 슬라이더로 전술 조정 → 보드가 실시간 반응.</p></div>
+      <div class="card"><h4>② 근거 있는 AI</h4><p>결정론적·설명가능한 코칭. 신뢰도 점수와 이유를 함께 제시, 원클릭 적용.</p></div>
+      <div class="card"><h4>③ 실전형 분석</h4><p>체력·출전시간 기반 부하관리와 교체 타이밍 제안 (실제 코칭 도구 지향).</p></div>
+      <div class="card"><h4>④ 감정적 보상</h4><p>대체 역사로 아쉬운 결과를 뒤집고, 경기 후 리포트·공유 카드로 마무리.</p></div>
+    </div>
+  </div>
+  <div class="foot"><span>World Cup Director AI · 기획서</span><span>02 · 솔루션 &amp; 핵심 가치</span></div>
+</section>
+
+<!-- 3. 주요 기능 -->
+<section class="page">
+  <div class="sec">
+    <h2><span class="no">03</span> 주요 기능</h2>
+    <table>
+      <tr><th style="width:26%">기능</th><th>설명</th></tr>
+      <tr><td><b>분 단위 경기 엔진</b></td><td>실제 이벤트 타임라인(골·슛·xG·카드)을 재생/일시정지/스크럽, 1~12배속. 실시간 스코어·점유율·xG·모멘텀·승률 곡선.</td></tr>
+      <tr><td><b>인터랙티브 전술 보드</b></td><td>선수 드래그 재배치, 5개 포메이션, <b>상대팀 실제 배치 오버레이</b>. 전술 슬라이더 변경이 선수 간격·라인에 즉시 반영.</td></tr>
+      <tr><td><b>전술 컨트롤</b></td><td>공격·수비라인·압박·템포·폭 슬라이더 + 역습/전방압박/오프사이드트랩 토글이 엔진에 실시간 연동.</td></tr>
+      <tr><td><b>AI 코치</b></td><td>경기 상황·전술을 읽어 근거+신뢰도 제시. <b class="k">[AI 전술 즉시 적용]</b> 버튼으로 포메이션·슬라이더 원클릭 반영.</td></tr>
+      <tr><td><b>부하관리·교체 추천</b></td><td>선수별 출전시간·분당 체력 소모율·체력 임계(45%) <b>도달 예상 시점</b>을 계산해 “누구를·언제·누구로” 교체할지 우선순위 제안(즉시/임박/관찰). 포지션 호환 최적 대체자 자동 선정.</td></tr>
+      <tr><td><b>팀 비교 (H2H)</b></td><td>우리 vs 상대 점유율·xG·슈팅·기회생성·코너·슈팅당xG를 한눈에 비교.</td></tr>
+      <tr><td><b>대체 역사</b></td><td>실제 xG를 전술 계수로 보정한 포아송 재시뮬레이션 → REAL vs YOUR 스코어라인, 전술 조정 시 실시간 변동.</td></tr>
+      <tr><td><b>경기 후 리포트</b></td><td>선수 평점·MOTM·AI 총평·등급·스포츠 헤드라인·교체 로그 + 공유 카드(PNG) 저장.</td></tr>
+      <tr><td><b>몰입 연출</b></td><td>방송 스타일 골/교체 알림, 심판 호루라기·관중 앰비언스(선택), 스카우팅 선수 카드.</td></tr>
+      <tr><td><b>한국 콘텐츠</b></td><td>한국 대표팀 스쿼드 + 번외 스타 선수(차범근·박지성 등), 전체 한/영 현지화.</td></tr>
+    </table>
+  </div>
+  <div class="foot"><span>World Cup Director AI · 기획서</span><span>03 · 주요 기능</span></div>
+</section>
+
+<!-- 4. 차별점 & 기술 -->
+<section class="page">
+  <div class="sec">
+    <h2><span class="no">04</span> 차별점</h2>
+    <div class="grid2">
+      <div class="card"><h4>‘게임’이 아니라 ‘분석 도구’</h4><p>화려한 아케이드 연출 대신 절제된 방송·애널리스트 톤. 실제 코칭 스태프의 로드매니지먼트를 지향.</p></div>
+      <div class="card"><h4>설명가능한 결정론적 AI</h4><p>블랙박스가 아닌, 지표 근거와 신뢰도를 함께 제시. 같은 입력엔 같은 결과 → 시연/검증 재현성.</p></div>
+      <div class="card"><h4>실시간 전술 피드백</h4><p>슬라이더 → 보드·승률·대체역사가 즉시 반응. “내가 조작하고 있다”는 체감.</p></div>
+      <div class="card"><h4>감정 서사 + 데이터</h4><p>한국의 아쉬운 결과를 다시 쓰는 훅에 정량 분석을 결합해 몰입과 신뢰를 동시에.</p></div>
+    </div>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">05</span> 기술 스택 &amp; 아키텍처</h2>
+    <p>
+      <span class="tag">Next.js 14 (App Router)</span><span class="tag">TypeScript</span>
+      <span class="tag">TailwindCSS</span><span class="tag">Framer Motion</span>
+      <span class="tag">Zustand</span><span class="tag">Canvas / Web Audio (무의존성)</span>
+    </p>
+    <table>
+      <tr><th style="width:24%">레이어</th><th>구성</th></tr>
+      <tr><td><b>data/</b></td><td>경기 데이터(팀·라인업·이벤트·xG). StatsBomb 스키마 호환 — 실데이터 교체 지점.</td></tr>
+      <tr><td><b>lib/ 엔진</b></td><td>matchEngine(스냅샷·승률·포아송), <b>analytics</b>(부하·교체추천·팀비교), aiCoach(규칙형 조언), stamina(체력 모델), i18n.</td></tr>
+      <tr><td><b>store (Zustand)</b></td><td>경기 시계·전술·라인업·교체·언어 등 단일 상태원. 컴포넌트는 상태 구독만.</td></tr>
+      <tr><td><b>components/</b></td><td>전술보드·스코어보드·승률차트·팀비교·교체추천·AI코치·리포트 등 프레젠테이션.</td></tr>
+    </table>
+    <div class="callout good">
+      <b>품질</b> — 프로덕션 빌드 통과, 타입체크 0 에러. 색상 팔레트는 색각 이상(CVD)·명도 대비 검증 통과.
+      접근성: 색 단독 의존 배제(아이콘·라벨 동반), <code>prefers-reduced-motion</code> 대응.
+    </div>
+  </div>
+  <div class="foot"><span>World Cup Director AI · 기획서</span><span>04 · 05 · 차별점 · 기술</span></div>
+</section>
+
+<!-- 6. 사용자 흐름 & 로드맵 -->
+<section class="page">
+  <div class="sec">
+    <h2><span class="no">06</span> 사용자 흐름 (시연 시나리오)</h2>
+    <div class="flow">
+      <div class="step"><div class="n">1</div><div class="t">감독 이름·우리팀(한국)·상대·연도 선택</div></div>
+      <div class="step"><div class="n">2</div><div class="t">전술 보드에서 배치·슬라이더 조정</div></div>
+      <div class="step"><div class="n">3</div><div class="t">재생 → AI 코치가 약점·교체 경고</div></div>
+      <div class="step"><div class="n">4</div><div class="t">교체 추천 원클릭 실행·전술 즉시 적용</div></div>
+      <div class="step"><div class="n">5</div><div class="t">풀타임 리포트·대체역사·공유 카드</div></div>
+    </div>
+    <p class="sub">기본 시연: <b>대한민국 vs 남아프리카공화국 (2026, 시나리오)</b> — 실제 1–2 패배를 감독이 되어 다시 쓴다.</p>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">07</span> 기대 효과 &amp; 심사 부합</h2>
+    <table>
+      <tr><th style="width:30%">심사 관점(일반)</th><th>대응</th></tr>
+      <tr><td><b>완성도·동작</b></td><td>빌드/타입 통과, 홈→경기→리포트 end-to-end 동작.</td></tr>
+      <tr><td><b>인터랙션(드래그·클릭·배치)</b></td><td>선수 드래그 배치, 슬라이더·토글, 원클릭 교체/전술 적용.</td></tr>
+      <tr><td><b>AI 활용성</b></td><td>근거·신뢰도 기반 제안 + 원클릭 반영, 부하관리 자동 분석.</td></tr>
+      <tr><td><b>참신성·몰입</b></td><td>대체 역사 서사 + 실시간 전술 피드백 + 방송 연출.</td></tr>
+      <tr><td><b>데이터 활용</b></td><td>실측/시나리오 이벤트·xG 기반, StatsBomb 호환 확장성.</td></tr>
+    </table>
+  </div>
+
+  <div class="sec">
+    <h2><span class="no">08</span> 향후 로드맵</h2>
+    <ul>
+      <li>공식 <b>2026 데이터셋 연동</b> (StatsBomb 로더) — 시나리오 → 실측 전환</li>
+      <li>히트맵·패스 네트워크 등 <b>심화 시각화</b>를 경기 후 리포트에 추가</li>
+      <li>벤치로 <b>드래그앤드롭 교체</b> 인터랙션 강화</li>
+      <li>더 많은 경기·시대(여자 월드컵 등)와 상대별 전술 프리셋</li>
+    </ul>
+    <div class="callout warn">
+      <b>정직성 원칙</b> — 확정되지 않은 결과는 ‘시나리오’로 명시하고 실측과 구분한다.
+      특정 인물에 대한 비방 없이 상황만 중립적으로 서술한다.
+    </div>
+  </div>
+  <div class="foot"><span>World Cup Director AI · 기획서</span><span>06 · 07 · 08 · 흐름 · 효과 · 로드맵</span></div>
+</section>
+
+</body>
+</html>
