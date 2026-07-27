@@ -16,7 +16,7 @@
 > 대회에서 실제 2026 데이터셋을 제공하면 StatsBomb 스키마로 그대로 교체 가능.
 
 ## Stack
-**Next.js 14 (App Router) · TypeScript · TailwindCSS · Framer Motion · Zustand**
+**Next.js 14 (App Router) · TypeScript · TailwindCSS · Framer Motion · Zustand · three.js (react-three-fiber)**
 
 ## Run
 ```bash
@@ -31,8 +31,20 @@ npm run build    # production build
 - **Match engine** — real minute-by-minute timeline (2022 & 2018 finals), play/pause/scrub,
   1–12× speed, live score, xG, possession, shots, corners, momentum, **live win-probability graph**,
   goal celebration overlay.
-- **Tactical board** — interactive pitch, **drag-and-drop players**, 5 formations
+- **Tactical board (2D ⇄ 3D)** — interactive pitch, **drag-and-drop players**, 5 formations
   (433 / 4231 / 352 / 343 / 541) with players springing into position.
+- **3D stadium view (three.js)** — full WebGL pitch rendered from the *same* placement math as the
+  2D board, so switching views never desyncs a single player:
+  - procedurally generated turf (mow stripes + FIFA-spec markings), goals with nets, corner flags,
+    tiered stands with a 3 600-point crowd, floodlights — **zero external assets**, all canvas-drawn
+  - 4 camera presets (**골문 뒤 / 중계 캠 / 탑다운 / 터치라인**) with smooth tweening, free orbit,
+    and a **cinematic** slow-orbit mode
+  - **drag players in 3D** — raycast onto the pitch plane writes straight back into the same store
+  - **tactical overlays**: team block (convex hull), both defensive lines, ball-centred press zone
+    (radius scales with the Press slider), per-player influence radii
+  - live shape metrics: **compactness / line height / line gap**
+  - fullscreen mode; graceful **fallback to the 2D board** if WebGL is unavailable
+  - lazy-loaded via `next/dynamic` — three.js stays out of the main bundle
 - **Tactical controls** — Attack / Line / Press / Tempo / Width sliders + Counter / High Press /
   Offside Trap toggles that feed the engine live.
 - **AI Coach** — deterministic tactical assistant with **confidence scores** and per-tip explanations,
@@ -53,11 +65,19 @@ npm run build    # production build
 ## Architecture
 ```
 app/            page.tsx (Home), match/page.tsx (experience), layout, globals.css
-components/      CrowdCanvas, Scoreboard, StatBars, MomentumBar, WinProbChart,
-                 EventFeed, TacticalPitch, TacticalControls, AICoachPanel
-lib/            types, formations, matchEngine (snapshot + Poisson sim), aiCoach (rules), store (zustand)
+components/      CrowdCanvas, Scoreboard, StatBars, MomentumBar, WinProbChart, EventFeed,
+                 TacticalBoard (2D/3D 전환 셸), TacticalPitch (2D), Pitch3D (three.js 씬),
+                 TacticalControls, AICoachPanel
+lib/            types, formations, matchEngine (snapshot + Poisson sim), aiCoach (rules), store (zustand),
+                pitchPositions (2D·3D 공유 배치 계산), pitchTextures (캔버스 텍스처), pitchView (뷰 설정)
 data/           matches.ts (real final data)
 ```
+
+### 2D/3D 단일 소스 원칙
+선수·공 위치는 `lib/pitchPositions.ts`의 `pitchFrame()` **한 곳**에서만 계산한다.
+절대 피치 좌표(`x` 0–100 폭, `y` 0=우리 골문 → 100=상대 골문)를 2D는 `top = 100 - y`로,
+3D는 `toWorld()`로 미터 단위 월드 좌표로 투영할 뿐이다. 전술 슬라이더·기세 이동·드리프트가
+두 뷰에 항상 동일하게 반영되고, 뷰를 바꿔도 배치가 어긋나지 않는다.
 
 ## Demo flow (end-to-end)
 Home → pick coach/country/opponent/year → **Start** → Play (▶, up to 12×) → drag players & tune tactics
@@ -72,6 +92,7 @@ Toggle **🔊 Sound** any time for crowd ambience + goal roars.
 - ✅ ~~Procedural Web Audio crowd ambience + goal roar~~
 - ✅ ~~한국 대표팀 + 2026 시나리오(한국 vs 남아공) & 대체역사 훅~~
 - ✅ ~~한국어/영어 전체 현지화 (UI·AI 코치·헤드라인·중계, 기본 한국어)~~
+- ✅ ~~three.js 3D 경기장 뷰 (카메라 프리셋·전술 오버레이·3D 드래그·전체화면)~~
 - Heatmaps & pass-network visualisations in the post-match report
 - Full StatsBomb loader + more matches/eras (Women's World Cup, older finals)
 - Fan reactions / social-post generation from the match narrative

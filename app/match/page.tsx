@@ -16,7 +16,7 @@ import TeamComparison from "@/components/TeamComparison";
 import MomentumBar from "@/components/MomentumBar";
 import WinProbChart from "@/components/WinProbChart";
 import EventFeed from "@/components/EventFeed";
-import TacticalPitch from "@/components/TacticalPitch";
+import TacticalBoard from "@/components/TacticalBoard";
 import TacticalControls from "@/components/TacticalControls";
 import AICoachPanel from "@/components/AICoachPanel";
 import SubAdvisor from "@/components/SubAdvisor";
@@ -174,13 +174,7 @@ export default function MatchPage() {
 
         {/* 중: 택티컬 보드 + 재생 */}
         <div className="space-y-4 xl:col-span-4">
-          <div className="glass rounded-2xl p-4">
-            <div className="mb-3 flex items-center justify-between">
-              <span className="text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "board.title")}</span>
-              <span className="text-[10px] text-white/40">{t(lang, "board.hint")}</span>
-            </div>
-            <TacticalPitch />
-          </div>
+          <TacticalBoard />
 
           {/* 장면별 데이터 근거·한계 자막 */}
           <DataProvenance match={match} minute={minute} />
