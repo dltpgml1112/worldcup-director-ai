@@ -25,6 +25,20 @@ npm run dev      # http://localhost:3000
 npm run build    # production build
 ```
 
+## 🔎 심사자용 30초 체험 경로
+설치·회원가입·API 키 없이 아래 순서만 따라가면 핵심 기능을 모두 확인할 수 있습니다.
+
+1. 첫 화면에서 **[⚽ 내 월드컵 시작하기]** 바로 클릭 — 이름 입력은 선택 사항입니다.
+2. 전술 보드가 **3D 경기장**으로 열립니다. 마우스로 끌어 **시점 회전**, 상단 버튼으로
+   **골문 뒤 / 중계 캠 / 탑다운 / 터치라인** 카메라 전환.
+3. **선수를 직접 끌어 재배치** → 아래 `컴팩트니스 / 라인 높이 / 라인 간격` 수치가 즉시 반응합니다.
+4. 보드 아래 **벤치 카드를 필드 선수 위로 드래그** → 대상 선수에 적색 링이 뜨고, 놓으면 **교체 완료**.
+5. 우측 슬라이더(공격 성향·수비 라인·압박)를 움직이면 **팀 블록·압박 존 오버레이**가 실시간 변형됩니다.
+6. **[▶ 재생]** (최대 12배속) → 풀타임 도달 시 **경기 후 리포트**가 자동으로 열립니다.
+7. 좌측 하단 **대체 역사** 패널에서 실제 결과 vs 내 전술 결과를 비교합니다.
+
+> 2D 보드만 보고 싶다면 상단 **[2D]** 토글로 즉시 전환됩니다 (배치·수치 완전 동일).
+
 ## What's implemented (vertical slice, AAA feel)
 - **Home** — dark stadium hero, canvas crowd + camera flashes + light sweep, coach name,
   country / opponent / year pickers, animated "Start My World Cup".
@@ -51,6 +65,13 @@ npm run build    # production build
   now including **fatigue-based substitution advice**.
 - **Substitutions & stamina** — live stamina model (role × Press/Tempo/High-Press intensity), 5-sub limit,
   bench with OVR, one-tap swaps; incoming players start fresh and slot into the replaced role.
+- **벤치 드래그 교체** — 벤치 카드를 집어 **2D 보드든 3D 경기장이든** 필드 선수 위로 끌어다 놓으면 교체.
+  드래그 상태가 스토어에 있어 두 뷰가 같은 드롭 타깃으로 동작하고, 조준 대상에는 적색 링 + 수직 기둥이
+  떠서 어느 카메라 각도에서도 식별된다. (터치 환경에서는 기존 교체 패널의 탭 선택 방식이 그대로 동작)
+- **레전드 모드 (기본 OFF)** — 기본값은 **실제 선출 가능한 현역 스쿼드만** 사용한다.
+  역대 대표팀 스타(차범근·박지성 등)는 *가상 편성*으로 분리해 명시적으로 켤 때만 벤치에 등장하며,
+  켜는 순간 "실제 2026 스쿼드가 아님"을 화면에 고지한다. 실측과 가상을 **구조적으로** 나누는
+  이 앱의 데이터 원칙(`DataProvenance`)을 스쿼드 구성에도 동일하게 적용한 것.
 - **Post-Match Report** — full-time modal with **player ratings + Man of the Match**, AI verdict & grade,
   generated **back-page headlines** (press conference), substitution log, and a **shareable PNG card**
   (native canvas, no deps) plus copy-to-clipboard summary.
