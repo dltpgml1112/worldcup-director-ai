@@ -4,8 +4,9 @@ import { Component, useMemo, useState, type ReactNode } from "react";
 import dynamic from "next/dynamic";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
-import { t } from "@/lib/i18n";
+import { t, displayName } from "@/lib/i18n";
 import { compactness, pitchFrame } from "@/lib/pitchPositions";
+import { heatLegendStops } from "@/lib/pitchAnalytics";
 import TacticalPitch from "./TacticalPitch";
 import BenchStrip from "./BenchStrip";
 import { CAM_KEYS, type CamKey, type OverlayFlags } from "@/lib/pitchView";
@@ -46,6 +47,8 @@ class WebGLBoundary extends Component<{ fallback: ReactNode; children: ReactNode
 }
 
 const OVERLAY_KEYS: { key: keyof OverlayFlags; i18n: string; color: string }[] = [
+  { key: "heat", i18n: "board.ov.heat", color: "#5aa3ee" },
+  { key: "passes", i18n: "board.ov.passes", color: "#3987e5" },
   { key: "block", i18n: "board.ov.block", color: "#3987e5" },
   { key: "line", i18n: "board.ov.line", color: "#199e70" },
   { key: "press", i18n: "board.ov.press", color: "#c98500" },
@@ -62,7 +65,10 @@ export default function TacticalBoard() {
     press: false,
     block: true,
     influence: false,
+    heat: false,
+    passes: false,
   });
+  const [heatPlayer, setHeatPlayer] = useState<string | null>(null);
 
   const lang = useGame((s) => s.lang);
   const players = useGame((s) => s.players);
@@ -89,7 +95,7 @@ export default function TacticalBoard() {
     <div className={expanded ? "h-full w-full" : "aspect-[3/4] w-full"}>
       {mode === "3d" ? (
         <WebGLBoundary fallback={<TacticalPitch />}>
-          <Pitch3D camKey={camKey} overlays={overlays} cinematic={cinematic} />
+          <Pitch3D camKey={camKey} overlays={overlays} cinematic={cinematic} heatPlayer={heatPlayer} />
         </WebGLBoundary>
       ) : (
         <TacticalPitch />
@@ -155,7 +161,7 @@ export default function TacticalBoard() {
 
       {/* 전술 오버레이 토글 */}
       {mode === "3d" && (
-        <div className="mb-3 flex flex-wrap items-center gap-1">
+        <div className="mb-2 flex flex-wrap items-center gap-1">
           {OVERLAY_KEYS.map(({ key, i18n, color }) => (
             <button
               key={key}
@@ -171,6 +177,54 @@ export default function TacticalBoard() {
               {t(lang, i18n)}
             </button>
           ))}
+        </div>
+      )}
+
+      {/* 히트맵 대상 선택 + 범례 */}
+      {mode === "3d" && overlays.heat && (
+        <div className="mb-2 rounded-md border border-surface-line bg-surface-panel p-2">
+          <div className="mb-1.5 flex flex-wrap items-center gap-1">
+            <span className="mr-1 text-[10px] font-semibold uppercase tracking-wide text-ink-muted">
+              {t(lang, "board.heat.who")}
+            </span>
+            <button
+              onClick={() => setHeatPlayer(null)}
+              className={`rounded px-1.5 py-0.5 text-[10px] font-bold transition ${
+                heatPlayer === null ? "bg-team-home text-white" : "bg-surface-raised text-ink-muted"
+              }`}
+            >
+              {t(lang, "board.heat.team")}
+            </button>
+            {players
+              .filter((p) => p.role.toUpperCase() !== "GK")
+              .map((p) => (
+                <button
+                  key={p.id}
+                  onClick={() => setHeatPlayer(p.id)}
+                  title={displayName(lang, p.name, p.nameKo)}
+                  className={`metric-num rounded px-1.5 py-0.5 text-[10px] font-bold transition ${
+                    heatPlayer === p.id ? "bg-team-home text-white" : "bg-surface-raised text-ink-muted"
+                  }`}
+                >
+                  {p.num}
+                </button>
+              ))}
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[9px] text-ink-muted">{t(lang, "board.heat.low")}</span>
+            <span
+              className="h-1.5 flex-1 rounded-full"
+              style={{ background: `linear-gradient(90deg, ${heatLegendStops().join(",")})` }}
+            />
+            <span className="text-[9px] text-ink-muted">{t(lang, "board.heat.high")}</span>
+          </div>
+        </div>
+      )}
+
+      {/* 패스 네트워크는 실측이 아니라 추정 모델 — 켜져 있는 동안 항상 명시 */}
+      {mode === "3d" && overlays.passes && (
+        <div className="mb-2 rounded-md border border-neon-gold/30 bg-neon-gold/10 px-2 py-1.5 text-[10px] leading-snug text-neon-gold">
+          ⚠️ {t(lang, "board.passes.estimated")}
         </div>
       )}
     </>

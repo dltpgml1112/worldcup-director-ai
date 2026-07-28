@@ -33,7 +33,9 @@ npm run build    # production build
    **골문 뒤 / 중계 캠 / 탑다운 / 터치라인** 카메라 전환.
 3. **선수를 직접 끌어 재배치** → 아래 `컴팩트니스 / 라인 높이 / 라인 간격` 수치가 즉시 반응합니다.
 4. 보드 아래 **벤치 카드를 필드 선수 위로 드래그** → 대상 선수에 적색 링이 뜨고, 놓으면 **교체 완료**.
-5. 우측 슬라이더(공격 성향·수비 라인·압박)를 움직이면 **팀 블록·압박 존 오버레이**가 실시간 변형됩니다.
+5. 오버레이에서 **[점유 히트맵]** · **[패스 네트워크]** 를 켜보세요. 히트맵은 등번호를 누르면
+   선수 개인 열지도로 바뀝니다. 슬라이더(공격 성향·수비 라인·압박)를 움직이면
+   **팀 블록·압박 존·패스 연결**이 실시간으로 변형됩니다.
 6. **[▶ 재생]** (최대 12배속) → 풀타임 도달 시 **경기 후 리포트**가 자동으로 열립니다.
 7. 좌측 하단 **대체 역사** 패널에서 실제 결과 vs 내 전술 결과를 비교합니다.
 
@@ -57,6 +59,15 @@ npm run build    # production build
   - **tactical overlays**: team block (convex hull), both defensive lines, ball-centred press zone
     (radius scales with the Press slider), per-player influence radii
   - live shape metrics: **compactness / line height / line gap**
+- **점유 히트맵** — 0분부터 현재까지 매 분 배치를 재계산해 누적한 열지도를 잔디 위에 렌더링.
+  **팀 전체 / 선수 개인** 전환 가능.
+  색은 **파랑 단일 계조(sequential)** 를 쓴다 — 중계 방송식 무지개(파랑→초록→노랑→빨강) 램프는
+  ⑴ 색만 보고 값의 크기 순서를 복원할 수 없고 ⑵ 녹색 잔디 위의 적·녹 구간이 적록색약에서
+  잔디와 구분되지 않는다. 파랑 단일 계조는 녹색 표면 위에서 모든 색각 유형에 분리된다.
+- **패스 네트워크** — 평균 위치를 노드로, 연결 강도를 선 굵기로 표현.
+  ⚠️ 실측 패스 이벤트가 없으므로 배치·거리 감쇠·템포·공격 성향에서 유도한 **추정 모델**이며,
+  오버레이가 켜져 있는 동안 화면에 항상 '추정'으로 명시된다. StatsBomb 패스 이벤트가 들어오면
+  `passNetwork()` 함수 하나만 교체하면 실측으로 전환된다.
   - fullscreen mode; graceful **fallback to the 2D board** if WebGL is unavailable
   - lazy-loaded via `next/dynamic` — three.js stays out of the main bundle
 - **Tactical controls** — Attack / Line / Press / Tempo / Width sliders + Counter / High Press /
@@ -90,7 +101,8 @@ components/      CrowdCanvas, Scoreboard, StatBars, MomentumBar, WinProbChart, E
                  TacticalBoard (2D/3D 전환 셸), TacticalPitch (2D), Pitch3D (three.js 씬),
                  TacticalControls, AICoachPanel
 lib/            types, formations, matchEngine (snapshot + Poisson sim), aiCoach (rules), store (zustand),
-                pitchPositions (2D·3D 공유 배치 계산), pitchTextures (캔버스 텍스처), pitchView (뷰 설정)
+                pitchPositions (2D·3D 공유 배치 계산), pitchAnalytics (히트맵·패스네트워크),
+                pitchTextures (캔버스 텍스처), pitchView (뷰 설정)
 data/           matches.ts (real final data)
 ```
 
@@ -114,6 +126,8 @@ Toggle **🔊 Sound** any time for crowd ambience + goal roars.
 - ✅ ~~한국 대표팀 + 2026 시나리오(한국 vs 남아공) & 대체역사 훅~~
 - ✅ ~~한국어/영어 전체 현지화 (UI·AI 코치·헤드라인·중계, 기본 한국어)~~
 - ✅ ~~three.js 3D 경기장 뷰 (카메라 프리셋·전술 오버레이·3D 드래그·전체화면)~~
-- Heatmaps & pass-network visualisations in the post-match report
+- ✅ ~~점유 히트맵 + 패스 네트워크 3D 시각화~~
+- ✅ ~~벤치 드래그 교체 (2D/3D 공통 드롭 타깃)~~
+- 히트맵/패스 네트워크를 경기 후 리포트에도 스냅샷으로 첨부
 - Full StatsBomb loader + more matches/eras (Women's World Cup, older finals)
 - Fan reactions / social-post generation from the match narrative

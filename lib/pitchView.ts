@@ -25,4 +25,8 @@ export interface OverlayFlags {
   block: boolean;
   /** 선수별 영향권 */
   influence: boolean;
+  /** 점유 히트맵 (경과 시간 누적) */
+  heat: boolean;
+  /** 패스 네트워크 (추정 모델) */
+  passes: boolean;
 }

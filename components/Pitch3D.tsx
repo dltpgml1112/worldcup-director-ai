@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type MutableRefObject } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -24,7 +24,16 @@ import {
   standTexture,
   turfTexture,
 } from "@/lib/pitchTextures";
+import {
+  HEAT_NX,
+  HEAT_NY,
+  occupancy,
+  paintHeatmap,
+  passNetwork,
+  type OccupancyResult,
+} from "@/lib/pitchAnalytics";
 import type { Lang } from "@/lib/i18n";
+import type { Player, Tactics } from "@/lib/types";
 import { CAM_PRESETS, type CamKey, type OverlayFlags } from "@/lib/pitchView";
 
 /* ─────────────────────────── 헬퍼 ─────────────────────────── */
@@ -493,6 +502,101 @@ function BlockShape({ placed, color }: { placed: PlacedPlayer[]; color: string }
   );
 }
 
+/* ─────────────────────────── 점유 히트맵 ─────────────────────────── */
+
+/**
+ * 격자를 캔버스에 칠해 잔디 바로 위 평면에 얹는다.
+ * 캔버스/텍스처를 한 번만 만들고 다시 칠하기만 해서 GPU 텍스처가 매번 새로 생기지 않게 한다.
+ */
+function HeatmapLayer({ grid }: { grid: Float32Array }) {
+  const canvas = useMemo(() => {
+    const c = document.createElement("canvas");
+    c.width = HEAT_NX * 10;
+    c.height = HEAT_NY * 10;
+    return c;
+  }, []);
+
+  const texture = useMemo(() => {
+    const t = new THREE.CanvasTexture(canvas);
+    t.colorSpace = THREE.SRGBColorSpace;
+    return t;
+  }, [canvas]);
+
+  // 씬에서 빠질 때 GPU 리소스 반환
+  useEffect(() => () => texture.dispose(), [texture]);
+
+  useEffect(() => {
+    paintHeatmap(canvas, grid);
+    texture.needsUpdate = true;
+  }, [canvas, texture, grid]);
+
+  return (
+    <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.015, 0]}>
+      <planeGeometry args={[PITCH.width, PITCH.length]} />
+      <meshBasicMaterial map={texture} transparent depthWrite={false} />
+    </mesh>
+  );
+}
+
+/* ─────────────────────────── 패스 네트워크 ─────────────────────────── */
+
+function PassNetworkLayer({
+  analytics,
+  players,
+  tactics,
+  color,
+}: {
+  analytics: OccupancyResult;
+  players: Player[];
+  tactics: Tactics;
+  color: string;
+}) {
+  const net = useMemo(
+    () => passNetwork({ players, avg: analytics.avg, tactics }),
+    [players, analytics, tactics]
+  );
+
+  return (
+    <group>
+      {net.links.map((l) => {
+        const a = toWorld(l.a);
+        const b = toWorld(l.b);
+        return (
+          <Line
+            key={`${l.from}-${l.to}`}
+            points={[
+              [a.x, 0.4, a.z],
+              [b.x, 0.4, b.z],
+            ]}
+            color={color}
+            // 강도 → 선 굵기. 굵기만으로 순위를 읽을 수 있게 범위를 넓게 잡는다
+            lineWidth={0.8 + l.weight * 5.5}
+            transparent
+            opacity={0.3 + l.weight * 0.6}
+          />
+        );
+      })}
+
+      {net.nodes.map((n) => {
+        const w = toWorld(n.pos);
+        const r = 0.7 + n.involvement * 1.7;
+        return (
+          <group key={n.id} position={[w.x, 0.42, w.z]}>
+            <mesh rotation={[-Math.PI / 2, 0, 0]}>
+              <circleGeometry args={[r, 28]} />
+              <meshBasicMaterial color={color} transparent opacity={0.55} depthWrite={false} />
+            </mesh>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.01, 0]}>
+              <ringGeometry args={[r, r + 0.22, 28]} />
+              <meshBasicMaterial color="#e8ecf1" transparent opacity={0.85} depthWrite={false} />
+            </mesh>
+          </group>
+        );
+      })}
+    </group>
+  );
+}
+
 /* ─────────────────────────── 카메라 ─────────────────────────── */
 
 function CameraRig({ camKey, controls }: { camKey: CamKey; controls: MutableRefObject<any> }) {
@@ -530,9 +634,11 @@ interface SceneProps {
   cinematic: boolean;
   drag: string | null;
   setDrag: (id: string | null) => void;
+  /** 히트맵 대상 선수. null이면 팀 전체 */
+  heatPlayer: string | null;
 }
 
-function Scene({ camKey, overlays, cinematic, drag, setDrag }: SceneProps) {
+function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: SceneProps) {
   const controls = useRef<any>(null);
   const players = useGame((s) => s.players);
   const setPlayerPos = useGame((s) => s.setPlayerPos);
@@ -553,6 +659,21 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag }: SceneProps) {
 
   const homeColor = match?.home.primary ?? "#3987e5";
   const awayColor = match?.away.primary ?? "#d95926";
+
+  // 히트맵/패스 네트워크는 0~현재분을 매 분 재계산하므로 필요할 때만 돌린다.
+  // 드래그 중에는 직전 결과를 재사용해 포인터 이동마다 90프레임을 다시 도는 걸 막는다.
+  const needAnalytics = overlays.heat || overlays.passes;
+  const analyticsRef = useRef<OccupancyResult | null>(null);
+  const analytics = useMemo(() => {
+    if (!needAnalytics) {
+      analyticsRef.current = null;
+      return null;
+    }
+    if (drag) return analyticsRef.current;
+    const r = occupancy({ match, players, tactics, upTo: minute, playerId: heatPlayer });
+    analyticsRef.current = r;
+    return r;
+  }, [needAnalytics, drag, match, players, tactics, minute, heatPlayer]);
 
   const onDragMove = useCallback(
     (p: PitchPoint) => {
@@ -576,6 +697,12 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag }: SceneProps) {
       <Goal sign={1} />
       <Goal sign={-1} />
       <CornerFlags />
+
+      {/* 분석 레이어 — 잔디 바로 위 (선수·전술 오버레이보다 아래) */}
+      {overlays.heat && analytics && <HeatmapLayer grid={analytics.grid} />}
+      {overlays.passes && analytics && (
+        <PassNetworkLayer analytics={analytics} players={players} tactics={tactics} color={homeColor} />
+      )}
 
       {/* 전술 오버레이 */}
       {overlays.block && <BlockShape placed={frame.home} color={homeColor} />}
@@ -642,10 +769,12 @@ export default function Pitch3D({
   camKey,
   overlays,
   cinematic,
+  heatPlayer = null,
 }: {
   camKey: CamKey;
   overlays: OverlayFlags;
   cinematic: boolean;
+  heatPlayer?: string | null;
 }) {
   const [drag, setDrag] = useState<string | null>(null);
 
@@ -661,7 +790,14 @@ export default function Pitch3D({
         gl={{ antialias: true, powerPreference: "high-performance" }}
         camera={{ position: CAM_PRESETS[camKey].pos, fov: 42, near: 0.5, far: 800 }}
       >
-        <Scene camKey={camKey} overlays={overlays} cinematic={cinematic} drag={drag} setDrag={setDrag} />
+        <Scene
+          camKey={camKey}
+          overlays={overlays}
+          cinematic={cinematic}
+          drag={drag}
+          setDrag={setDrag}
+          heatPlayer={heatPlayer}
+        />
       </Canvas>
     </div>
   );
