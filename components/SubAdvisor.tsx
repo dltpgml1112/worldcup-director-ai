@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import type { MatchData } from "@/lib/types";
 import type { MatchSnapshot } from "@/lib/matchEngine";
 import { subRecommendations, squadLoad, STAMINA_FLOOR } from "@/lib/analytics";
@@ -30,9 +31,16 @@ export default function SubAdvisor({ match, snap, minute }: { match: MatchData; 
   const subsUsed = useGame((s) => s.subsUsed);
   const makeSub = useGame((s) => s.makeSub);
   const lang = useGame((s) => s.lang);
+  const legendMode = useGame((s) => s.legendMode);
+
+  // 추천도 현재 투입 가능한 선수만 대상으로 한다 (레전드 OFF면 가상 편성 제외)
+  const availableBench = useMemo(
+    () => bench.filter((b) => legendMode || !b.legend),
+    [bench, legendMode]
+  );
 
   const load = squadLoad(players, minute, tactics);
-  const recs = subRecommendations(players, bench, minute, tactics, snap, subsUsed, lang);
+  const recs = subRecommendations(players, availableBench, minute, tactics, snap, subsUsed, lang);
   const exhausted = subsUsed >= 5;
 
   return (

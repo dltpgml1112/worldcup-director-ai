@@ -21,7 +21,12 @@ export interface Player {
   rating: number; // 0-100
   stamina: number; // 0-100 (초기값; 실시간 소모는 lib/stamina.ts에서 계산)
   onAt?: number; // 교체 투입된 분 (선발은 0)
-  legend?: boolean; // 번외 스타/레전드 (선발엔 없지만 팬 로망)
+  /**
+   * 역대 스타 = 실제 스쿼드가 아닌 가상 편성.
+   * 기본(분석 도구 모드)에서는 벤치에 노출되지 않고, '레전드 모드'를 켠 경우에만 등장한다.
+   * 실측/가상을 구조적으로 분리하기 위한 플래그 — 현역 선수에는 절대 붙이지 않는다.
+   */
+  legend?: boolean;
 }
 
 export type EventType =

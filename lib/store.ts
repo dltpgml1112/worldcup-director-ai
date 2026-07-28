@@ -31,8 +31,11 @@ interface GameState {
   speed: number; // 분/초
   sound: boolean;
   lang: Lang;
+  /** 역대 스타(가상 편성) 벤치 노출 여부. 기본 OFF = 현역 선수만 (분석 도구 모드) */
+  legendMode: boolean;
 
   setLang: (l: Lang) => void;
+  setLegendMode: (v: boolean) => void;
   setup: (p: { coachName: string; matchId: string }) => void;
   setFormation: (f: FormationKey) => void;
   setTactic: <K extends keyof Tactics>(k: K, v: Tactics[K]) => void;
@@ -65,8 +68,11 @@ export const useGame = create<GameState>((set, get) => ({
   speed: 6,
   sound: false,
   lang: "ko",
+  legendMode: false,
 
   setLang: (lang) => set({ lang }),
+
+  setLegendMode: (legendMode) => set({ legendMode }),
 
   setup: ({ coachName, matchId }) => {
     const match = getMatch(matchId);
@@ -106,6 +112,8 @@ export const useGame = create<GameState>((set, get) => ({
       const off = s.players.find((p) => p.id === offId);
       const on = s.bench.find((p) => p.id === onId);
       if (!off || !on) return {} as Partial<GameState>;
+      // 레전드 모드가 꺼져 있으면 가상 편성 선수는 투입 불가 (UI를 우회한 호출 방어)
+      if (on.legend && !s.legendMode) return {} as Partial<GameState>;
       const incoming: Player = { ...on, x: off.x, y: off.y, role: off.role, onAt: s.minute };
       return {
         players: s.players.map((p) => (p.id === offId ? incoming : p)),

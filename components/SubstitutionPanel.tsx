@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { playerStamina, staminaTone } from "@/lib/stamina";
@@ -16,10 +16,19 @@ export default function SubstitutionPanel() {
   const subsUsed = useGame((s) => s.subsUsed);
   const makeSub = useGame((s) => s.makeSub);
   const lang = useGame((s) => s.lang);
+  const legendMode = useGame((s) => s.legendMode);
+  const setLegendMode = useGame((s) => s.setLegendMode);
   const [selected, setSelected] = useState<string | null>(null);
 
   const outOfSubs = subsUsed >= MAX_SUBS;
   const selectedPlayer = players.find((p) => p.id === selected);
+
+  // 기본은 현역 선수만. 역대 스타(가상 편성)는 레전드 모드에서만 노출한다.
+  const visibleBench = useMemo(
+    () => bench.filter((b) => legendMode || !b.legend),
+    [bench, legendMode]
+  );
+  const hiddenLegends = bench.length - visibleBench.length;
 
   const doSub = (onId: string) => {
     if (!selected) return;
@@ -34,6 +43,38 @@ export default function SubstitutionPanel() {
         <span className={`chip ${outOfSubs ? "bg-white/5 text-white/40" : "bg-neon-grass/15 text-neon-grass"}`}>
           {subsUsed}/{MAX_SUBS} {t(lang, "sub.used")}
         </span>
+      </div>
+
+      {/* 스쿼드 소스 전환 — 기본은 현역만(분석 도구), 레전드는 명시적 옵트인 */}
+      <div className="mb-3 rounded-lg border border-surface-line bg-surface-panel p-2">
+        <div className="flex items-center justify-between gap-2">
+          <span className="text-[11px] font-semibold text-ink-secondary">
+            {legendMode ? `⭐ ${t(lang, "sub.legendMode")}` : `✓ ${t(lang, "sub.activeOnly")}`}
+          </span>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={legendMode}
+            aria-label={t(lang, "sub.legendMode")}
+            onClick={() => setLegendMode(!legendMode)}
+            className={`relative h-5 w-9 shrink-0 rounded-full transition ${
+              legendMode ? "bg-neon-gold" : "bg-surface-line"
+            }`}
+          >
+            <span
+              className={`absolute top-0.5 h-4 w-4 rounded-full bg-white transition-all ${
+                legendMode ? "left-[1.125rem]" : "left-0.5"
+              }`}
+            />
+          </button>
+        </div>
+        <p className="mt-1 text-[10px] leading-snug text-ink-muted">
+          {legendMode
+            ? t(lang, "sub.legendNotice")
+            : hiddenLegends > 0
+              ? `${t(lang, "sub.activeNotice")} (${t(lang, "sub.legendHidden").replace("{n}", String(hiddenLegends))})`
+              : t(lang, "sub.activeNotice")}
+        </p>
       </div>
 
       {/* 온-피치 선수 스태미나 */}
@@ -82,13 +123,13 @@ export default function SubstitutionPanel() {
             <div className="mb-2 text-[11px] text-white/50">
               {t(lang, "sub.replace")} <span className="font-bold text-neon-red">{displayName(lang, selectedPlayer.name, selectedPlayer.nameKo)}</span> — {t(lang, "sub.pick")}
             </div>
-            {bench.length === 0 ? (
+            {visibleBench.length === 0 ? (
               <div className="rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs text-white/40">
                 {t(lang, "sub.benchEmpty")}
               </div>
             ) : (
               <div className="grid grid-cols-1 gap-1.5">
-                {bench.map((b) => (
+                {visibleBench.map((b) => (
                   <button
                     key={b.id}
                     onClick={() => doSub(b.id)}
