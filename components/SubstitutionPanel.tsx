@@ -3,7 +3,9 @@
 import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
+import { getMatch } from "@/data/matches";
 import { playerStamina, staminaTone } from "@/lib/stamina";
+import { redCardRisk, riskTone } from "@/lib/cards";
 import { t, displayName } from "@/lib/i18n";
 
 const MAX_SUBS = 5;
@@ -29,6 +31,17 @@ export default function SubstitutionPanel() {
     [bench, legendMode]
   );
   const hiddenLegends = bench.length - visibleBench.length;
+
+  // 경고 보유 선수의 퇴장 위험 — 교체 판단의 직접 근거
+  const matchId = useGame((s) => s.matchId);
+  const risks = useMemo(
+    () => redCardRisk(getMatch(matchId), players, minute, tactics, lang),
+    [matchId, players, minute, tactics, lang]
+  );
+  const riskById = useMemo(
+    () => new Map(risks.map((r) => [r.player.id, r])),
+    [risks]
+  );
 
   const doSub = (onId: string) => {
     if (!selected) return;
@@ -83,6 +96,8 @@ export default function SubstitutionPanel() {
           const s = playerStamina(p, minute, tactics);
           const tone = staminaTone(s);
           const active = selected === p.id;
+          const risk = riskById.get(p.id);
+          const rt = risk ? riskTone(risk.risk, lang) : null;
           return (
             <button
               key={p.id}
@@ -97,6 +112,19 @@ export default function SubstitutionPanel() {
               <span className="min-w-0 flex-1 truncate text-sm font-semibold">
                 {p.legend && <span className="mr-0.5">⭐</span>}
                 {displayName(lang, p.name, p.nameKo)}
+                {risk && rt && (
+                  <span
+                    className="ml-1 inline-flex items-center gap-1 rounded px-1 align-middle text-[9px] font-bold"
+                    style={{ background: `${rt.color}22`, color: rt.color }}
+                    title={`${t(lang, "card.risk")} ${risk.risk}/100 — ${risk.drivers.join(" · ")}`}
+                  >
+                    <span
+                      className="inline-block h-2.5 w-[7px] rounded-[1px]"
+                      style={{ background: "#fab219" }}
+                    />
+                    {risk.risk}
+                  </span>
+                )}
               </span>
               <span className="flex w-24 shrink-0 items-center gap-1.5">
                 <span className="h-1.5 flex-1 overflow-hidden rounded-full bg-white/10">

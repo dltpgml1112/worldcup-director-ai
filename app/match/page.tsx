@@ -6,7 +6,17 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate } from "@/lib/matchEngine";
-import { startCrowd, stopCrowd, setCrowdLevel, goalRoar, whistle } from "@/lib/audio";
+import {
+  startCrowd,
+  stopCrowd,
+  pauseCrowd,
+  resumeCrowd,
+  setCrowdLevel,
+  goalRoar,
+  whistle,
+  kickoffWhistle,
+  cardSound,
+} from "@/lib/audio";
 import { t, type Lang } from "@/lib/i18n";
 import type { MatchEvent } from "@/lib/types";
 import LangToggle from "@/components/LangToggle";
@@ -23,6 +33,7 @@ import SubAdvisor from "@/components/SubAdvisor";
 import DataProvenance from "@/components/DataProvenance";
 import SubstitutionPanel from "@/components/SubstitutionPanel";
 import PostMatchReport from "@/components/PostMatchReport";
+import CardToast from "@/components/CardToast";
 
 export default function MatchPage() {
   const coachName = useGame((s) => s.coachName);
@@ -43,6 +54,8 @@ export default function MatchPage() {
   const celebFor = useRef<number>(-1);
   const resumeAfterCeleb = useRef(false);
   const whistleFor = useRef<number>(-1);
+  const [cardEvent, setCardEvent] = useState<MatchEvent | null>(null);
+  const cardFor = useRef<number>(-1);
 
   const match = getMatch(matchId);
   const end = match?.timeline[match.timeline.length - 1]?.minute ?? 90;
@@ -61,6 +74,13 @@ export default function MatchPage() {
     return () => stopCrowd();
   }, [sound]);
 
+  // 경기가 멈추면 사운드도 같이 멈춘다 (재생 중일 때만 소리가 난다)
+  useEffect(() => {
+    if (!sound) return;
+    if (playing) resumeCrowd();
+    else pauseCrowd();
+  }, [sound, playing]);
+
   // 전-경기 리셋 시 리포트/세리머니 상태 초기화
   useEffect(() => {
     if (minute === 0) {
@@ -69,19 +89,36 @@ export default function MatchPage() {
       setCelebration(null);
       celebFor.current = -1;
       whistleFor.current = -1;
+      setCardEvent(null);
+      cardFor.current = -1;
     }
   }, [minute]);
 
-  // 심판 호루라기 — 킥오프 / 전·후반 종료(휘슬 이벤트)
+  // 심판 호루라기 — 킥오프는 길게 + 관중 환호, 전·후반 종료는 두 번
   useEffect(() => {
     if (!match || !sound) return;
     const ev = match.timeline.find((e) => e.minute === minute && e.type === "whistle");
     const kickoff = minute === 1;
     if ((ev || kickoff) && whistleFor.current !== minute) {
       whistleFor.current = minute;
-      whistle(!!ev);
+      if (kickoff) kickoffWhistle();
+      else whistle(true);
     }
   }, [minute, match, sound]);
+
+  // 카드 — 휘슬 + 관중 야유, 방송 로어서드 토스트
+  useEffect(() => {
+    if (!match) return;
+    const ev = match.timeline.find((e) => e.minute === minute && e.type === "card");
+    if (!ev || cardFor.current === minute) return;
+    cardFor.current = minute;
+    setCardEvent(ev);
+    if (sound) cardSound(ev.card === "red");
+    const id = setTimeout(() => setCardEvent(null), 3200);
+    return () => clearTimeout(id);
+    // sound는 트리거 시점 값만 사용
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [minute, match]);
 
   // 크라우드 웅성거림을 모멘텀에 연동
   useEffect(() => {
@@ -237,6 +274,9 @@ export default function MatchPage() {
         lang={lang}
         accent={celebration?.side === "away" ? match.away.primary : match.home.primary}
       />
+
+      {/* 카드 알림 (방송 오버레이) */}
+      <CardToast event={cardEvent} lang={lang} home={match.home} away={match.away} />
 
       {/* 교체 알림 (방송 로어서드) */}
       <SubToast lang={lang} />

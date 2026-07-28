@@ -3,6 +3,8 @@ import type { MatchSnapshot } from "./matchEngine";
 import type { Lang } from "./i18n";
 import { compactness, type PitchFrame } from "./pitchPositions";
 import { playerStamina } from "./stamina";
+import { redCardRisk } from "./cards";
+import { displayName } from "./i18n";
 
 /**
  * 실시간 전술 피드백 (방송 로어서드).
@@ -131,6 +133,30 @@ function allInsights(input: InsightInput): LiveInsight[] {
         : `Holding the trap with the line at ${tactics.line}%. One mistimed step concedes a clean one-on-one.`,
       metric: { label: ko ? "수비 라인" : "Line", value: `${tactics.line}%` },
       apply: { tactics: { offsideTrap: false, line: 58 } },
+    });
+  }
+
+  // 5.5) 경고 보유 선수의 퇴장 위험 — 카드가 전술 제약으로 작동하는 지점
+  const risks = redCardRisk(match, players, minute, tactics, ko ? "ko" : "en");
+  const hot = risks.find((r) => r.risk >= 55);
+  if (frame.live && hot) {
+    const nm = displayName(lang, hot.player.name, hot.player.nameKo);
+    out.push({
+      id: `red-risk-${hot.player.id}`,
+      rank: 1.5, // 라인 간격보다 급하다 — 수적 열세는 되돌릴 수 없다
+      severity: "urgent",
+      title: ko ? `${nm} 퇴장 위험 — 지금 손봐라` : `${nm} is a red card waiting to happen`,
+      detail: ko
+        ? `${hot.booking.minute}분 경고 보유 중. 위험도 ${hot.risk}/100 (${hot.drivers.join(" · ")}). 압박을 낮추거나 교체하라 — 수적 열세는 어떤 전술로도 못 되돌린다.`
+        : `Booked at ${hot.booking.minute}'. Risk ${hot.risk}/100 (${hot.drivers.join(" · ")}). Ease the press or take them off — you cannot tactic your way out of ten men.`,
+      metric: { label: ko ? "퇴장 위험" : "Red risk", value: `${hot.risk}/100` },
+      apply: {
+        tactics: {
+          press: Math.max(25, tactics.press - 25),
+          highPress: false,
+          line: Math.min(tactics.line, 60),
+        },
+      },
     });
   }
 

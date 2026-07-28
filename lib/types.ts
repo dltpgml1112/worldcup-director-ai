@@ -47,6 +47,8 @@ export interface MatchEvent {
   detail: string;
   detailKo?: string;
   xg?: number;
+  /** type: "card"일 때 카드 색 */
+  card?: "yellow" | "red";
 }
 
 export type FormationKey = "433" | "4231" | "352" | "343" | "541";

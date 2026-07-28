@@ -35,6 +35,7 @@ import {
 } from "@/lib/pitchAnalytics";
 import type { Lang } from "@/lib/i18n";
 import type { Player, Tactics } from "@/lib/types";
+import { bookingsAt, matchPlayer } from "@/lib/cards";
 import { CAM_PRESETS, type CamKey, type OverlayFlags } from "@/lib/pitchView";
 
 /* ─────────────────────────── 헬퍼 ─────────────────────────── */
@@ -243,6 +244,8 @@ interface TokenProps {
   /** 현재 교체 조준 대상인지 */
   aimed?: boolean;
   onAim?: (id: string | null) => void;
+  /** 경고/퇴장 카드 보유 */
+  booked?: "yellow" | "red" | null;
 }
 
 function PlayerToken({
@@ -258,6 +261,7 @@ function PlayerToken({
   benchDragActive,
   aimed,
   onAim,
+  booked,
 }: TokenProps) {
   const group = useRef<THREE.Group>(null);
   const { player, pos, gk } = placed;
@@ -336,6 +340,18 @@ function PlayerToken({
         <sphereGeometry args={[0.24, 16, 12]} />
         <meshStandardMaterial color="#c99e78" roughness={0.8} />
       </mesh>
+
+      {/* 경고 카드 — 번호 뱃지 옆에 세워 어느 각도에서도 보이게 */}
+      {booked && (
+        <sprite position={[2.0, 4.3, 0]} scale={[0.85, 1.2, 1]}>
+          <spriteMaterial
+            color={booked === "red" ? "#d03b3b" : "#fab219"}
+            transparent
+            depthWrite={false}
+            depthTest={false}
+          />
+        </sprite>
+      )}
 
       {/* 번호 · 이름 빌보드 — 이름 라벨 하단이 머리(2.2m) 바로 위에 오도록 배치 */}
       <sprite position={[0, 3.6, 0]} scale={[5.6, 3.15, 1]}>
@@ -781,6 +797,19 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
   const homeColor = match?.home.primary ?? "#3987e5";
   const awayColor = match?.away.primary ?? "#d95926";
 
+  // 경고 보유 선수 — 양 팀 모두 토큰에 카드를 세운다
+  const bookedById = useMemo(() => {
+    const map = new Map<string, "yellow" | "red">();
+    const squads = [players, match?.awayXI ?? []];
+    for (const b of bookingsAt(match, minute)) {
+      const squad = b.side === "home" ? squads[0] : squads[1];
+      const p = matchPlayer(squad, b.player);
+      // 퇴장이 경고를 덮어쓴다
+      if (p && (b.card === "red" || !map.has(p.id))) map.set(p.id, b.card);
+    }
+    return map;
+  }, [match, players, minute]);
+
   // 히트맵/패스 네트워크는 0~현재분을 매 분 재계산하므로 필요할 때만 돌린다.
   // 드래그 중에는 직전 결과를 재사용해 포인터 이동마다 90프레임을 다시 도는 걸 막는다.
   const needAnalytics = overlays.heat || overlays.passes;
@@ -843,6 +872,7 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
           dragging={false}
           showInfluence={false}
           influenceColor={awayColor}
+          booked={bookedById.get(p.player.id) ?? null}
         />
       ))}
 
@@ -862,6 +892,7 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
           benchDragActive={benchDrag !== null}
           aimed={subTarget === p.player.id}
           onAim={setSubTarget}
+          booked={bookedById.get(p.player.id) ?? null}
         />
       ))}
 
