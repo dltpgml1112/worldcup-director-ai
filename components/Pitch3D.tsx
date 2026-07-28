@@ -228,6 +228,11 @@ interface TokenProps {
   showInfluence: boolean;
   influenceColor: string;
   onGrab?: (id: string) => void;
+  /** 벤치 드래그 진행 중 — 히트박스를 교체 조준용으로 쓴다 */
+  benchDragActive?: boolean;
+  /** 현재 교체 조준 대상인지 */
+  aimed?: boolean;
+  onAim?: (id: string | null) => void;
 }
 
 function PlayerToken({
@@ -240,6 +245,9 @@ function PlayerToken({
   showInfluence,
   influenceColor,
   onGrab,
+  benchDragActive,
+  aimed,
+  onAim,
 }: TokenProps) {
   const group = useRef<THREE.Group>(null);
   const { player, pos, gk } = placed;
@@ -284,16 +292,24 @@ function PlayerToken({
         </mesh>
       )}
 
-      {/* 선택/드래그 링 */}
+      {/* 선택/드래그 링 — 교체 조준 중이면 OUT 색(적색)으로 크게 */}
       {isHome && (
         <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.05, 0]}>
-          <ringGeometry args={[0.8, dragging ? 1.25 : 1.0, 32]} />
+          <ringGeometry args={[aimed ? 1.1 : 0.8, aimed ? 1.75 : dragging ? 1.25 : 1.0, 36]} />
           <meshBasicMaterial
-            color={dragging ? "#ffffff" : player.legend ? "#c98500" : color}
+            color={aimed ? "#d03b3b" : dragging ? "#ffffff" : player.legend ? "#c98500" : color}
             transparent
-            opacity={dragging ? 0.95 : 0.55}
+            opacity={aimed ? 0.95 : dragging ? 0.95 : 0.55}
             depthWrite={false}
           />
+        </mesh>
+      )}
+
+      {/* 교체 조준 시 기둥 표시 — 어느 시점에서도 대상이 명확히 보이게 */}
+      {aimed && (
+        <mesh position={[0, 3, 0]}>
+          <cylinderGeometry args={[0.09, 0.09, 6, 8]} />
+          <meshBasicMaterial color="#d03b3b" transparent opacity={0.55} depthWrite={false} />
         </mesh>
       )}
 
@@ -316,16 +332,27 @@ function PlayerToken({
         <spriteMaterial map={label} transparent depthWrite={false} depthTest={false} />
       </sprite>
 
-      {/* 그랩 히트박스 — 드래그 중엔 언마운트해서 잔디 레이캐스트를 막지 않는다 */}
+      {/* 그랩 히트박스 — 선수 드래그 중엔 언마운트해서 잔디 레이캐스트를 막지 않는다.
+          벤치 드래그 중에는 교체 드롭 타깃으로 동작한다. */}
       {interactive && onGrab && (
         <mesh
           position={[0, 1.2, 0]}
           onPointerDown={(e: ThreeEvent<PointerEvent>) => {
+            if (benchDragActive) return; // 벤치 드래그 중엔 선수 이동을 시작하지 않는다
             e.stopPropagation();
             onGrab(player.id);
           }}
+          onPointerOver={(e: ThreeEvent<PointerEvent>) => {
+            if (!benchDragActive || !onAim) return;
+            e.stopPropagation();
+            onAim(player.id);
+          }}
+          onPointerOut={() => {
+            if (!benchDragActive || !onAim) return;
+            if (aimed) onAim(null);
+          }}
         >
-          <cylinderGeometry args={[1.0, 1.0, 2.6, 8]} />
+          <cylinderGeometry args={[benchDragActive ? 1.9 : 1.0, benchDragActive ? 1.9 : 1.0, 3.4, 10]} />
           <meshBasicMaterial transparent opacity={0} depthWrite={false} />
         </mesh>
       )}
@@ -514,6 +541,9 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag }: SceneProps) {
   const minute = useGame((s) => s.minute);
   const playing = useGame((s) => s.playing);
   const lang = useGame((s) => s.lang);
+  const benchDrag = useGame((s) => s.benchDrag);
+  const subTarget = useGame((s) => s.subTarget);
+  const setSubTarget = useGame((s) => s.setSubTarget);
 
   const match = getMatch(matchId);
   const frame = useMemo(
@@ -581,6 +611,9 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag }: SceneProps) {
           showInfluence={overlays.influence}
           influenceColor={homeColor}
           onGrab={setDrag}
+          benchDragActive={benchDrag !== null}
+          aimed={subTarget === p.player.id}
+          onAim={setSubTarget}
         />
       ))}
 
@@ -589,7 +622,7 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag }: SceneProps) {
       <CameraRig camKey={camKey} controls={controls} />
       <OrbitControls
         ref={controls}
-        enabled={drag === null}
+        enabled={drag === null && benchDrag === null}
         enablePan={false}
         minDistance={22}
         maxDistance={190}

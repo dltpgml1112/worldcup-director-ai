@@ -21,6 +21,9 @@ export default function TacticalPitch() {
   const minute = useGame((s) => s.minute);
   const playing = useGame((s) => s.playing);
   const lang = useGame((s) => s.lang);
+  const benchDrag = useGame((s) => s.benchDrag);
+  const subTarget = useGame((s) => s.subTarget);
+  const setSubTarget = useGame((s) => s.setSubTarget);
   const match = getMatch(matchId);
   const home = match?.home;
   const away = match?.away;
@@ -112,22 +115,29 @@ export default function TacticalPitch() {
         style={{ backgroundImage: "radial-gradient(circle at 35% 30%, #fff 40%, #cbd5e1 100%)" }}
       />
 
-      {/* 홈(우리) 선수 토큰 — 드래그 가능 */}
-      {frame.home.map(({ player: p, pos }) => (
+      {/* 홈(우리) 선수 토큰 — 드래그 가능 + 벤치 드래그의 교체 드롭 타깃 */}
+      {frame.home.map(({ player: p, pos }) => {
+        const aimed = subTarget === p.id;
+        return (
         <motion.button
           key={p.id}
           type="button"
           onPointerDown={(e) => {
+            if (benchDrag) return; // 벤치 드래그 중엔 선수 이동을 시작하지 않는다
             e.preventDefault();
             setDrag(p.id);
           }}
+          onPointerEnter={() => benchDrag && setSubTarget(p.id)}
+          onPointerLeave={() => benchDrag && aimed && setSubTarget(null)}
           animate={{ left: `${pos.x}%`, top: `${100 - pos.y}%` }}
           transition={drag === p.id ? { duration: 0 } : live ? { duration: 0.5, ease: "linear" } : { type: "spring", stiffness: 260, damping: 26 }}
           className="absolute z-10 flex h-10 w-10 -translate-x-1/2 -translate-y-1/2 cursor-grab flex-col items-center justify-center active:cursor-grabbing"
           whileTap={{ scale: 1.18 }}
         >
           <span
-            className="relative flex h-8 w-8 items-center justify-center rounded-full border-2 font-display text-sm font-bold text-white shadow-lg"
+            className={`relative flex h-8 w-8 items-center justify-center rounded-full border-2 font-display text-sm font-bold text-white shadow-lg ${
+              aimed ? "ring-4 ring-status-critical" : ""
+            }`}
             style={{ background: home?.primary ?? "#42f59b", borderColor: p.legend ? "#ffd54a" : "#fff" }}
           >
             {p.num}
@@ -139,7 +149,8 @@ export default function TacticalPitch() {
             {lang === "ko" && p.nameKo ? p.nameKo : p.name.split(" ").pop()}
           </span>
         </motion.button>
-      ))}
+        );
+      })}
     </div>
   );
 }

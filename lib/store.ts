@@ -34,8 +34,20 @@ interface GameState {
   /** 역대 스타(가상 편성) 벤치 노출 여부. 기본 OFF = 현역 선수만 (분석 도구 모드) */
   legendMode: boolean;
 
+  /**
+   * 벤치 드래그 교체 상태.
+   * 스토어에 두면 2D 보드·3D 뷰·벤치 스트립이 prop 없이 같은 드래그를 공유한다.
+   */
+  benchDrag: string | null; // 끌고 있는 벤치 선수 id
+  subTarget: string | null; // 현재 조준 중인 필드 선수 id
+
   setLang: (l: Lang) => void;
   setLegendMode: (v: boolean) => void;
+  startBenchDrag: (benchId: string) => void;
+  setSubTarget: (playerId: string | null) => void;
+  /** 조준한 선수가 있으면 교체 실행. 반환값은 실제 교체 여부 */
+  dropBenchDrag: () => boolean;
+  cancelBenchDrag: () => void;
   setup: (p: { coachName: string; matchId: string }) => void;
   setFormation: (f: FormationKey) => void;
   setTactic: <K extends keyof Tactics>(k: K, v: Tactics[K]) => void;
@@ -69,10 +81,31 @@ export const useGame = create<GameState>((set, get) => ({
   sound: false,
   lang: "ko",
   legendMode: false,
+  benchDrag: null,
+  subTarget: null,
 
   setLang: (lang) => set({ lang }),
 
   setLegendMode: (legendMode) => set({ legendMode }),
+
+  startBenchDrag: (benchId) => set({ benchDrag: benchId, subTarget: null }),
+
+  setSubTarget: (playerId) => set((s) => (s.benchDrag ? { subTarget: playerId } : {})),
+
+  dropBenchDrag: () => {
+    const { benchDrag, subTarget, makeSub } = get();
+    if (!benchDrag || !subTarget) {
+      set({ benchDrag: null, subTarget: null });
+      return false;
+    }
+    const before = get().subsUsed;
+    makeSub(subTarget, benchDrag);
+    const done = get().subsUsed > before;
+    set({ benchDrag: null, subTarget: null });
+    return done;
+  },
+
+  cancelBenchDrag: () => set({ benchDrag: null, subTarget: null }),
 
   setup: ({ coachName, matchId }) => {
     const match = getMatch(matchId);

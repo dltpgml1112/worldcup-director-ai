@@ -7,6 +7,7 @@ import { getMatch } from "@/data/matches";
 import { t } from "@/lib/i18n";
 import { compactness, pitchFrame } from "@/lib/pitchPositions";
 import TacticalPitch from "./TacticalPitch";
+import BenchStrip from "./BenchStrip";
 import { CAM_KEYS, type CamKey, type OverlayFlags } from "@/lib/pitchView";
 
 /** three.js는 브라우저 전용 — SSR을 끄고 필요할 때만 로드한다 */
@@ -200,6 +201,7 @@ export default function TacticalBoard() {
           </div>
           {controls}
           <div className="min-h-0 flex-1">{viewport}</div>
+          <BenchStrip />
           {hud}
         </div>
       </>
@@ -218,6 +220,7 @@ export default function TacticalBoard() {
       </div>
       {controls}
       {viewport}
+      <BenchStrip />
       {hud}
     </div>
   );
