@@ -1,4 +1,4 @@
-import type { MatchData, Player, Tactics } from "./types";
+import type { MatchData, Player, Side, Tactics } from "./types";
 import { snapshotAt } from "./matchEngine";
 
 /**
@@ -39,6 +39,20 @@ export function fromWorld(wx: number, wz: number): PitchPoint {
   };
 }
 
+/** 어느 팀이 공을 가지고 있는지 — 최근 이벤트 우선, 없으면 기세로 판단 */
+export function possessionOf(
+  match: MatchData | undefined,
+  minute: number,
+  momentum: number
+): Side {
+  const last = match ? [...match.timeline].reverse().find((e) => e.minute <= minute) : undefined;
+  if (last && last.type !== "whistle") {
+    // 슈팅/코너 직후엔 공격했던 팀이 계속 몰아친다고 본다
+    return last.side;
+  }
+  return momentum >= 0 ? "home" : "away";
+}
+
 /** 공 목표 위치 — 재생 전/정지 시 정중앙, 재생 중엔 최근 이벤트 기반 위치 */
 export function ballTarget(
   match: MatchData | undefined,
@@ -48,7 +62,8 @@ export function ballTarget(
 ): PitchPoint {
   if (!match || !playing || minute <= 0) return { x: 50, y: 50 };
   let y = 50 + momentum * 0.28; // 기세: 홈 우위 → 상대 골문 쪽
-  let x = 50 + Math.sin(minute * 0.9) * 7;
+  // 좌우로 전개되는 폭을 실제 경기처럼 넓게 — 두 개의 주기를 겹쳐 단조로운 왕복을 깬다
+  let x = 50 + Math.sin(minute * 0.9) * 16 + Math.sin(minute * 0.37 + 1.1) * 9;
   const last = [...match.timeline].reverse().find((e) => e.minute <= minute);
   if (last) {
     const home = last.side === "home";
@@ -134,6 +149,81 @@ export interface PitchFrame {
   /** 상대 최종 수비 라인 y */
   awayLine: number;
   live: boolean;
+  /** 공 점유 팀 */
+  possession: Side;
+}
+
+/**
+ * 공 중심 팀 이동 (ball-oriented shifting).
+ *
+ * 실제 경기에서 블록 전체는 공을 기준으로 움직인다. 이 함수가 없으면 선수들이
+ * 공과 무관하게 제자리에서 흔들리기만 해서 '전술 보드'가 아니라 '배치도'로 보인다.
+ *
+ *  1) 볼사이드 횡이동 — 블록 전체가 공 쪽으로 슬라이드, 반대편 선수는 안으로 좁힌다
+ *  2) 종압축 — 공 높이 쪽으로 팀 간격을 줄인다
+ *  3) 압박 수렴 — 공에 가장 가까운 2명이 강하게 달라붙는다 (수비 팀이 더 강함)
+ *  4) 침투 — 공을 가진 팀이 최종 3분의 1에 들어가면 전방 선수가 골문 쪽으로 뛴다
+ *  5) GK — 공 좌우를 따라가고, 공이 멀면 라인을 나온다
+ */
+function applyBallReaction(
+  placed: PlacedPlayer[],
+  ball: PitchPoint,
+  opts: { press: number; hasBall: boolean; attackingUp: boolean }
+): PlacedPlayer[] {
+  const { press, hasBall, attackingUp } = opts;
+  const sideSign = ball.x - 50;
+
+  // 공까지 거리 순위 (필드 플레이어만) — 압박/지원 인원 선정
+  const ranked = placed
+    .map((p, i) => ({ i, gk: p.gk, d: Math.hypot(p.pos.x - ball.x, p.pos.y - ball.y) }))
+    .filter((r) => !r.gk)
+    .sort((a, b) => a.d - b.d);
+  const closest = new Map<number, number>(); // index -> 순위(0,1)
+  ranked.slice(0, 2).forEach((r, rank) => closest.set(r.i, rank));
+
+  // 공을 뺏으러 가는 팀이 더 강하게 수렴한다
+  const pressGain = (hasBall ? 0.14 : 0.30) + (press / 100) * (hasBall ? 0.06 : 0.26);
+
+  return placed.map((placedPlayer, i) => {
+    const { pos, gk } = placedPlayer;
+    let { x, y } = pos;
+
+    if (gk) {
+      x += sideSign * 0.10;
+      // 공이 우리 골문에서 멀면 골키퍼가 라인을 올린다 (스위퍼 키퍼)
+      const ballDepth = attackingUp ? ball.y : 100 - ball.y;
+      if (ballDepth > 65) y += (attackingUp ? 1 : -1) * Math.min(6, (ballDepth - 65) * 0.22);
+      return { ...placedPlayer, pos: { x: clamp(x, 5, 95), y: clamp(y, 2, 98) } };
+    }
+
+    // 1) 볼사이드 횡이동 + 반대편 좁히기
+    x += sideSign * 0.20;
+    if (Math.sign(x - 50) !== Math.sign(sideSign) && sideSign !== 0) {
+      x += sideSign * 0.12;
+    }
+
+    // 2) 종압축
+    y += (ball.y - y) * 0.05;
+
+    // 3) 압박/지원 수렴
+    const rank = closest.get(i);
+    if (rank !== undefined) {
+      const k = rank === 0 ? pressGain : pressGain * 0.55;
+      x += (ball.x - x) * k;
+      y += (ball.y - y) * k;
+    }
+
+    // 4) 최종 3분의 1 침투
+    if (hasBall) {
+      const ballDepth = attackingUp ? ball.y : 100 - ball.y;
+      const playerDepth = attackingUp ? y : 100 - y;
+      if (ballDepth > 66 && playerDepth > 58) {
+        y += (attackingUp ? 1 : -1) * 5;
+      }
+    }
+
+    return { ...placedPlayer, pos: { x: clamp(x, 3, 97), y: clamp(y, 3, 97) } };
+  });
 }
 
 /**
@@ -153,6 +243,9 @@ export function pitchFrame(params: {
   const homeShift = clamp(momentum * 0.06, -7, 7);
   const awayShift = clamp(-momentum * 0.06, -7, 7);
   const live = playing && minute > 0;
+
+  const ball = ballTarget(match, minute, momentum, playing);
+  const possession = possessionOf(match, minute, momentum);
 
   const home: PlacedPlayer[] = players.map((p, i) => {
     const gk = p.role.toUpperCase() === "GK";
@@ -179,18 +272,37 @@ export function pitchFrame(params: {
     };
   });
 
-  const outfieldHome = home.filter((h) => !h.gk);
-  const outfieldAway = away.filter((a) => !a.gk);
+  // 공 중심 이동은 재생 중에만 — 정지 상태에서는 편집한 배치를 그대로 보여준다.
+  // 드래그 중인 선수는 커서를 정확히 따라야 하므로 반응에서 제외한다.
+  const homeFinal = live
+    ? applyBallReaction(home, ball, {
+        press: tactics.press,
+        hasBall: possession === "home",
+        attackingUp: true,
+      }).map((p, i) => (dragId && p.player.id === dragId ? home[i] : p))
+    : home;
+
+  const awayFinal = live
+    ? applyBallReaction(away, ball, {
+        press: tactics.press,
+        hasBall: possession === "away",
+        attackingUp: false,
+      })
+    : away;
+
+  const outfieldHome = homeFinal.filter((h) => !h.gk);
+  const outfieldAway = awayFinal.filter((a) => !a.gk);
 
   return {
-    home,
-    away,
-    ball: ballTarget(match, minute, momentum, playing),
+    home: homeFinal,
+    away: awayFinal,
+    ball,
     ballHeight: ballFlight(match, minute, playing),
     momentum,
     homeLine: outfieldHome.length ? Math.min(...outfieldHome.map((h) => h.pos.y)) : 20,
     awayLine: outfieldAway.length ? Math.max(...outfieldAway.map((a) => a.pos.y)) : 80,
     live,
+    possession,
   };
 }
 

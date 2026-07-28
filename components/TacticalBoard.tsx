@@ -9,6 +9,7 @@ import { compactness, pitchFrame } from "@/lib/pitchPositions";
 import { heatLegendStops } from "@/lib/pitchAnalytics";
 import TacticalPitch from "./TacticalPitch";
 import BenchStrip from "./BenchStrip";
+import LiveInsightOverlay from "./LiveInsightOverlay";
 import { CAM_KEYS, type CamKey, type OverlayFlags } from "@/lib/pitchView";
 
 /** three.js는 브라우저 전용 — SSR을 끄고 필요할 때만 로드한다 */
@@ -92,7 +93,7 @@ export default function TacticalBoard() {
     setOverlays((o) => ({ ...o, [k]: !o[k] }));
 
   const viewport = (
-    <div className={expanded ? "h-full w-full" : "aspect-[3/4] w-full"}>
+    <div className={`relative ${expanded ? "h-full w-full" : "aspect-[3/4] w-full"}`}>
       {mode === "3d" ? (
         <WebGLBoundary fallback={<TacticalPitch />}>
           <Pitch3D camKey={camKey} overlays={overlays} cinematic={cinematic} heatPlayer={heatPlayer} />
@@ -100,6 +101,8 @@ export default function TacticalBoard() {
       ) : (
         <TacticalPitch />
       )}
+      {/* 실시간 전술 피드백 — 보드 위에 겹쳐 띄운다 (사이드 대시보드와 별개) */}
+      <LiveInsightOverlay />
     </div>
   );
 

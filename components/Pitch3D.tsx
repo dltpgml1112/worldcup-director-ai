@@ -12,6 +12,7 @@ import {
   fromWorld,
   pitchFrame,
   toWorld,
+  type PitchFrame,
   type PitchPoint,
   type PlacedPlayer,
 } from "@/lib/pitchPositions";
@@ -371,40 +372,160 @@ function PlayerToken({
 
 /* ─────────────────────────── 공 ─────────────────────────── */
 
-function Ball({ pos, height }: { pos: PitchPoint; height: number }) {
+/**
+ * 공 반지름(m). 실제 규격은 0.11m지만 105m 경기장을 담는 카메라 거리에서는
+ * 몇 픽셀도 안 되어 보이지 않는다. 전술 보드로서 '공이 어디 있는지'가 가장 중요한 정보라
+ * 의도적으로 과장한다.
+ */
+const BALL_R = 0.5;
+
+/** 결정론 난수 — 같은 (분, 홉 번호)면 항상 같은 값이라 시연이 재현된다 */
+function hashRand(a: number, b: number) {
+  let h = (a * 73856093) ^ (b * 19349663);
+  h = Math.imul(h ^ (h >>> 13), 1274126177);
+  return ((h ^ (h >>> 16)) >>> 0) / 4294967295;
+}
+
+interface Hop {
+  from: THREE.Vector3;
+  to: THREE.Vector3;
+  apex: number; // 최고 높이(m)
+  dur: number; // 초
+  t: number;
+}
+
+/**
+ * 실제 축구다운 공 움직임.
+ *
+ * 이전 구현은 이벤트 위치로 그냥 미끄러져 갔다 — 공이 '흘러다니는 점'으로 보였다.
+ * 여기서는 공을 홉(hop) 단위로 움직인다: 선수 사이를 패스로 이동하고,
+ * 짧은 패스는 낮게 굴러가고 긴 전환 패스는 크게 뜨며, 착지 후에는 튄다.
+ * 회전 속도는 실제 수평 속도에 비례해서 굴러가는 느낌이 난다.
+ */
+function Ball({ frame, minute }: { frame: PitchFrame; minute: number }) {
   const ref = useRef<THREE.Mesh>(null);
   const shadow = useRef<THREE.Mesh>(null);
-  const target = useMemo(() => vec(pos, Math.max(0.11, height)), [pos.x, pos.y, height]); // eslint-disable-line react-hooks/exhaustive-deps
+  const hop = useRef<Hop | null>(null);
+  const hopIndex = useRef(0);
+  const spin = useRef(new THREE.Vector3());
 
-  const spawned = useRef(false);
+  // 렌더 사이에 최신 프레임을 읽기 위한 참조 (useFrame 클로저 고정 방지)
+  const frameRef = useRef(frame);
+  frameRef.current = frame;
+  const minuteRef = useRef(minute);
+  minuteRef.current = minute;
+
+  /** 다음 목적지를 고른다 — 점유 팀 선수에게 패스하거나, 전술적 공 위치로 전환 */
+  const pickNext = (currentPos: THREE.Vector3): Hop => {
+    const f = frameRef.current;
+    const m = minuteRef.current;
+    const i = hopIndex.current++;
+    const anchor = vec(f.ball, 0);
+
+    // 공이 전술적 위치에서 너무 멀어졌으면 그쪽으로 크게 전환한다
+    const drifted = currentPos.distanceTo(anchor) > 22;
+
+    let dest: THREE.Vector3;
+    if (drifted || !f.live) {
+      dest = anchor;
+    } else {
+      // 점유 팀 선수 중 하나에게 패스 — 전방 패스에 가중
+      const squad = (f.possession === "home" ? f.home : f.away).filter((p) => !p.gk);
+      if (squad.length === 0) {
+        dest = anchor;
+      } else {
+        const forwardSign = f.possession === "home" ? 1 : -1;
+        const scored = squad
+          .map((p) => {
+            const w = vec(p.pos, 0);
+            const dist = w.distanceTo(currentPos);
+            // 너무 가깝지도 멀지도 않은 선수 + 전진 방향 선호
+            const near = Math.exp(-Math.pow(dist - 16, 2) / 320);
+            const forward = ((p.pos.y - f.ball.y) * forwardSign) / 100;
+            return { w, s: near * (1 + forward * 0.8) + hashRand(m, i + squad.indexOf(p)) * 0.25 };
+          })
+          .sort((a, b) => b.s - a.s);
+        dest = scored[0].w;
+      }
+    }
+
+    const dist = currentPos.distanceTo(dest);
+    const r = hashRand(m, i);
+    // 짧은 패스는 굴러가고(낮은 아크), 긴 전환은 크게 뜬다
+    const lofted = dist > 26 || r > 0.72;
+    const apex = lofted ? Math.min(9, 1.6 + dist * 0.14) : 0.1 + dist * 0.012;
+    // 속도: 롱패스가 더 빠르지만 거리 비례로 시간이 늘어난다
+    const speed = lofted ? 26 : 17;
+    const dur = Math.max(0.35, Math.min(2.4, dist / speed));
+
+    return { from: currentPos.clone(), to: dest, apex, dur, t: 0 };
+  };
 
   useFrame((_, dt) => {
     const m = ref.current;
     if (!m) return;
-    if (!spawned.current) {
-      m.position.copy(target);
-      spawned.current = true;
+    const step = Math.min(dt, 0.05);
+
+    if (!hop.current) {
+      const start = vec(frameRef.current.ball, 0);
+      m.position.set(start.x, BALL_R, start.z);
+      hop.current = pickNext(m.position.clone());
     }
-    const k = 1 - Math.pow(0.02, Math.min(dt, 0.1));
-    m.position.lerp(target, k);
-    m.rotation.x += dt * 3.4;
-    m.rotation.z += dt * 1.6;
+
+    const h = hop.current;
+    h.t += step / h.dur;
+
+    if (h.t >= 1) {
+      m.position.set(h.to.x, BALL_R, h.to.z);
+      hop.current = pickNext(m.position.clone());
+      return;
+    }
+
+    const t = h.t;
+    const prevX = m.position.x;
+    const prevZ = m.position.z;
+
+    // 수평: 등속 / 수직: 포물선 + 착지 직전 바운스
+    m.position.x = h.from.x + (h.to.x - h.from.x) * t;
+    m.position.z = h.from.z + (h.to.z - h.from.z) * t;
+
+    let y = BALL_R + 4 * h.apex * t * (1 - t);
+    // 로빙 볼은 마지막 15%에서 한 번 더 작게 튄다
+    if (h.apex > 1.2 && t > 0.85) {
+      const bt = (t - 0.85) / 0.15;
+      y = BALL_R + h.apex * 0.16 * 4 * bt * (1 - bt);
+    }
+    m.position.y = y;
+
+    // 회전: 실제 수평 이동량 기반 — 구르는 방향으로 굴러간다
+    const dx = m.position.x - prevX;
+    const dz = m.position.z - prevZ;
+    const travelled = Math.hypot(dx, dz);
+    if (travelled > 1e-5) {
+      const angle = travelled / BALL_R;
+      spin.current.set(dz, 0, -dx).normalize();
+      m.rotateOnWorldAxis(spin.current, angle);
+    }
+
     if (shadow.current) {
-      shadow.current.position.set(m.position.x, 0.03, m.position.z);
-      const s = 1 + m.position.y * 0.35;
-      shadow.current.scale.setScalar(s);
+      shadow.current.position.set(m.position.x, 0.035, m.position.z);
+      // 높이 올라갈수록 그림자는 커지고 옅어진다
+      const lift = m.position.y - BALL_R;
+      shadow.current.scale.setScalar(1 + lift * 0.22);
+      const mat = shadow.current.material as THREE.MeshBasicMaterial;
+      mat.opacity = Math.max(0.15, 0.85 - lift * 0.075);
     }
   });
 
   return (
     <group>
       <mesh ref={ref}>
-        <sphereGeometry args={[0.115, 20, 16]} />
-        <meshStandardMaterial map={ballTexture()} roughness={0.42} />
+        <sphereGeometry args={[BALL_R, 24, 18]} />
+        <meshStandardMaterial map={ballTexture()} roughness={0.45} emissive="#20262e" emissiveIntensity={0.25} />
       </mesh>
-      <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.03, 0]}>
-        <planeGeometry args={[0.9, 0.9]} />
-        <meshBasicMaterial map={shadowTexture()} transparent depthWrite={false} opacity={0.8} />
+      <mesh ref={shadow} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.035, 0]}>
+        <planeGeometry args={[2.4, 2.4]} />
+        <meshBasicMaterial map={shadowTexture()} transparent depthWrite={false} opacity={0.85} />
       </mesh>
     </group>
   );
@@ -744,7 +865,7 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
         />
       ))}
 
-      <Ball pos={frame.ball} height={frame.ballHeight} />
+      <Ball frame={frame} minute={minute} />
 
       <CameraRig camKey={camKey} controls={controls} />
       <OrbitControls
