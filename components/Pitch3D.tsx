@@ -646,9 +646,20 @@ function PressZone({ ball, press }: { ball: PitchPoint; press: number }) {
 }
 
 function BlockShape({ placed, color }: { placed: PlacedPlayer[]; color: string }) {
+  /*
+   * placed는 매 렌더 새 배열이라 그대로 의존하면 볼록껍질·Shape·Line 지오메트리를
+   * 초당 여러 번 새로 만든다 (재생 중 버벅임의 원인 중 하나).
+   * 좌표를 1단위로 반올림한 문자열을 키로 삼아, 대형이 실제로 바뀔 때만 재생성한다.
+   */
+  const key = placed
+    .filter((p) => !p.gk)
+    .map((p) => `${Math.round(p.pos.x)},${Math.round(p.pos.y)}`)
+    .join("|");
+
   const hull = useMemo(
-    () => convexHull(placed.filter((p) => !p.gk).map((p) => p.pos)),
-    [placed]
+    () => convexHull(placed.filter((p) => !p.gk).map((p) => ({ ...p.pos }))),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [key]
   );
 
   const shape = useMemo(() => {
@@ -815,27 +826,29 @@ function MatchSimController({
       const cx = spot.x;
       const cy = spot.y;
       // 득점자는 정중앙, 동료들은 그 둘레로 — 카메라가 잡는 지점과 일치한다
+      // 좌표 객체는 재사용한다 (세리머니 4.6초 동안 매 프레임 22개씩 만들면 GC가 튄다)
+      const put = (id: string, x: number, y: number) => {
+        let w = map.get(id);
+        if (!w) {
+          w = { x: 0, z: 0 };
+          map.set(id, w);
+        }
+        w.x = ((x - 50) / 100) * PITCH.width;
+        w.z = ((50 - y) / 100) * PITCH.length;
+      };
       const others = scoring.filter((p) => !p.gk && p.player.id !== scorerId);
       scoring.forEach((p) => {
-        if (p.gk) {
-          map.set(p.player.id, toWorld(p.pos));
-          return;
-        }
-        if (p.player.id === scorerId) {
-          map.set(p.player.id, toWorld({ x: cx, y: cy }));
-          return;
-        }
+        if (p.gk) return put(p.player.id, p.pos.x, p.pos.y);
+        if (p.player.id === scorerId) return put(p.player.id, cx, cy);
         const i = others.indexOf(p);
         const ang = (i / Math.max(1, others.length)) * Math.PI * 2;
-        map.set(
+        put(
           p.player.id,
-          toWorld({
-            x: clamp(cx + Math.cos(ang) * 8, 6, 94),
-            y: clamp(cy + Math.sin(ang) * 8, 6, 94),
-          })
+          clamp(cx + Math.cos(ang) * 8, 6, 94),
+          clamp(cy + Math.sin(ang) * 8, 6, 94)
         );
       });
-      other.forEach((p) => map.set(p.player.id, toWorld(p.pos)));
+      other.forEach((p) => put(p.player.id, p.pos.x, p.pos.y));
       return;
     }
 
@@ -1492,8 +1505,11 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, onGrab, onMarkTap, 
 
 /* ─────────────────────────── 공개 컴포넌트 ─────────────────────────── */
 
-/** 골 선언 후 슛이 골망에 닿기까지 보여주는 시간(ms) */
-const SHOT_WINDOW = 1000;
+/**
+ * 골 선언 전에 슛 장면을 보여주는 시간(ms).
+ * 박스로 찔러주는 패스(최대 0.8초) + 받아서 잡기(0.45초) + 슛(0.62초)이 들어가야 한다.
+ */
+const SHOT_WINDOW = 1900;
 
 /** 이 시간·거리 안에서 손을 떼면 이동이 아니라 '클릭'으로 본다 */
 const TAP_MS = 250;

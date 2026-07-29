@@ -194,9 +194,8 @@ export function CrowdFlashes({ active }: { active: boolean }) {
   const ref = useRef<THREE.Points>(null);
   const COUNT = 160;
 
-  const { positions, phase } = useMemo(() => {
+  const positions = useMemo(() => {
     const pos = new Float32Array(COUNT * 3);
-    const ph = new Float32Array(COUNT);
     const halfW = PITCH.width / 2 + TURF_MARGIN + 16;
     const halfL = PITCH.length / 2 + TURF_MARGIN + 16;
     for (let i = 0; i < COUNT; i++) {
@@ -209,9 +208,8 @@ export function CrowdFlashes({ active }: { active: boolean }) {
       else if (edge === 2) { pos[i * 3] = u * halfW * 2; pos[i * 3 + 2] = halfL + depth; }
       else { pos[i * 3] = u * halfW * 2; pos[i * 3 + 2] = -(halfL + depth); }
       pos[i * 3 + 1] = 4 + Math.random() * 10;
-      ph[i] = Math.random() * 100;
     }
-    return { positions: pos, phase: ph };
+    return pos;
   }, []);
 
   useFrame((state) => {
@@ -219,27 +217,21 @@ export function CrowdFlashes({ active }: { active: boolean }) {
     if (!p) return;
     p.visible = active;
     if (!active) return;
-    // 각 점이 서로 다른 주기로 짧게 터진다 — 규칙적이지 않게 보이도록
-    const tt = state.clock.elapsedTime * 9;
+    /*
+     * 전체 밝기·크기만 흔든다.
+     * 예전에는 점마다 size 속성을 매 프레임 다시 올렸는데, PointsMaterial은 그 속성을
+     * 쓰지도 않는다 — 아무 효과 없이 버퍼만 업로드해 세리머니 때 프레임을 잡아먹었다.
+     */
     const mat = p.material as THREE.PointsMaterial;
-    const attr = p.geometry.getAttribute("size") as THREE.BufferAttribute | undefined;
-    if (attr) {
-      for (let i = 0; i < COUNT; i++) {
-        const v = Math.sin(tt + phase[i]);
-        attr.setX(i, v > 0.88 ? 2.6 : 0);
-      }
-      attr.needsUpdate = true;
-    }
-    mat.opacity = 0.95;
+    const tt = state.clock.elapsedTime * 11;
+    mat.opacity = 0.55 + Math.abs(Math.sin(tt)) * 0.45;
+    mat.size = 2.0 + Math.abs(Math.sin(tt * 1.7)) * 1.4;
   });
-
-  const sizes = useMemo(() => new Float32Array(COUNT), []);
 
   return (
     <points ref={ref} visible={false}>
       <bufferGeometry>
         <bufferAttribute attach="attributes-position" args={[positions, 3]} />
-        <bufferAttribute attach="attributes-size" args={[sizes, 1]} />
       </bufferGeometry>
       <pointsMaterial
         size={2.4}

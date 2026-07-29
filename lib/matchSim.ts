@@ -278,15 +278,24 @@ export function stepBall(
     const sp = at(ctx.scriptedScorerId);
     if (scorer && sp) {
       s.scriptedDone = ctx.scriptedGoalMinute;
-      s.mode = "carry";
+      /*
+       * 공을 득점자에게 순간이동시키지 않는다.
+       * 그러면 선수는 아직 달려오는 중인데 공만 박스 안으로 튀어, "골대에서 먼 데서
+       * 갑자기 골"처럼 보인다. 대신 있던 자리에서 득점자에게 **패스**를 보낸다 —
+       * 화면에는 '박스로 찔러준 패스 → 마무리'로 읽힌다.
+       */
+      s.mode = "pass";
       s.side = scorer.side;
-      s.carrierId = scorer.id;
-      s.targetId = null;
-      s.pos = { ...sp };
+      s.from = { ...s.pos };
+      s.to = { ...sp };
+      s.targetId = scorer.id;
+      s.carrierId = null;
+      const d = dist(s.from, s.to);
+      s.dur = clamp(d / 60, 0.3, 0.8);
+      s.apex = d > 30 ? 2.2 : 0.4;
+      s.t = 0;
       s.height = 0;
-      // 짧게 잡았다가 곧바로 슛 — 세리머니 타이밍과 맞는다
-      s.hold = 0.35;
-      s.duelCool = 1.2; // 이 순간엔 뺏기지 않는다
+      s.duelCool = 2.0; // 이 패스는 끊기지 않는다
       return { turnover: true };
     }
   }
@@ -477,8 +486,10 @@ export function stepBall(
       s.carrierId = s.targetId;
       // 패스가 날아가는 동안 수신자가 움직였을 수 있다 — 현재 위치로 맞춘다
       s.pos = { ...at(s.targetId)! };
+      const wasScriptedScorer = s.targetId === ctx.scriptedScorerId;
       s.targetId = null;
-      s.hold = 0.45 + rand(ctx.minute, s.seq++, 19) * 0.6;
+      // 대본 득점자는 받자마자 때린다 — 골 배너 타이밍(SHOT_WINDOW) 안에 들어와야 한다
+      s.hold = wasScriptedScorer ? 0.26 : 0.45 + rand(ctx.minute, s.seq++, 19) * 0.6;
     } else {
       // 슛/빗나간 패스 → 루즈볼
       s.mode = "loose";

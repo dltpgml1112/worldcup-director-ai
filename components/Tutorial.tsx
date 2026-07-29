@@ -14,7 +14,11 @@ import { t, type Lang } from "@/lib/i18n";
  * 레이아웃이 바뀌어도 속성만 유지하면 따라간다.
  */
 
-const SEEN_KEY = "wcd:tour:v1";
+/**
+ * 버전을 올리면 이미 본 사람에게도 한 번 다시 보여준다.
+ * 투어에 담긴 기능이 크게 바뀌었을 때만 올린다 (v2: 프리셋·선수 카드·진행 표시 추가).
+ */
+const SEEN_KEY = "wcd:tour:v2";
 
 interface Step {
   target: string;
@@ -29,8 +33,8 @@ const STEPS: Step[] = [
     target: "board",
     titleKo: "① 전술 보드 — 여기가 경기장입니다",
     titleEn: "① Tactical board — this is the pitch",
-    bodyKo: "마우스를 끌면 시점이 돌아갑니다. 선수를 직접 끌어다 놓아 배치를 바꿀 수 있습니다.",
-    bodyEn: "Drag to orbit the camera. Drag any player to move them.",
+    bodyKo: "마우스를 끌면 시점이 돌아갑니다. 선수를 끌어다 놓으면 그 자리에 그대로 배치되고, 선수를 짧게 클릭하면 능력치·체력·경고 카드가 열립니다.",
+    bodyEn: "Drag to orbit. Drag a player to place them exactly where you drop them; a short click opens their attributes, stamina and cards.",
   },
   {
     target: "camera",
@@ -54,30 +58,37 @@ const STEPS: Step[] = [
     bodyEn: "Grab a bench card and drop it on a player. The target is ringed in red.",
   },
   {
+    target: "progress",
+    titleKo: "⑤ 전반·후반과 남은 시간",
+    titleEn: "⑤ Halves and time remaining",
+    bodyKo: "지금이 전반인지 후반인지, 몇 분 남았는지 여기서 확인합니다. 막대 위의 점은 골과 경고가 일어난 시점이라, 경기가 어떻게 흘러왔는지 한눈에 보입니다.",
+    bodyEn: "See which half you're in and how long is left. Dots on the bar mark goals and cards, so you can read how the match unfolded.",
+  },
+  {
     target: "playback",
-    titleKo: "⑤ 경기 재생",
-    titleEn: "⑤ Play the match",
+    titleKo: "⑥ 경기 재생",
+    titleEn: "⑥ Play the match",
     bodyKo: "재생을 누르면 경기가 분 단위로 진행됩니다. 배속(3·6·12x)으로 빠르게 넘길 수 있고, 슬라이더로 원하는 시점으로 이동합니다.",
     bodyEn: "Press play to run the match minute by minute. Use 3/6/12× to speed up, or scrub with the slider.",
   },
   {
     target: "presets",
-    titleKo: "⑥ 전술 프리셋 — 여기서 시작하세요",
-    titleEn: "⑥ Tactical presets — start here",
+    titleKo: "⑦ 전술 프리셋 — 여기서 시작하세요",
+    titleEn: "⑦ Tactical presets — start here",
     bodyKo: "게겐프레싱·역습·버스 세우기 같은 이름 있는 전술입니다. 각 카드에 적용했을 때의 예상 승리 확률이 미리 표시되고, 카드를 누르면 그 전술이 무엇을 얻고 무엇을 내주는지 함께 보여줍니다.",
     bodyEn: "Named identities like Gegenpress, Counter, or Park the bus. Each card previews the win probability it would give you, and opening one shows what it gains and what it costs.",
   },
   {
     target: "tactics",
-    titleKo: "⑦ 세부 조정도 즉시 반영됩니다",
-    titleEn: "⑦ Fine-tuning applies instantly",
+    titleKo: "⑧ 세부 조정도 즉시 반영됩니다",
+    titleEn: "⑧ Fine-tuning applies instantly",
     bodyKo: "공격 성향·수비 라인·압박을 직접 움직이면 선수 배치와 승리 확률이 곧바로 바뀌고, 변화량이 화면에 표시됩니다.",
     bodyEn: "Move Attack, Line, or Press yourself — the shape and win probability respond immediately, and the change is shown on screen.",
   },
   {
     target: "coach",
-    titleKo: "⑧ AI 코치가 근거와 함께 제안합니다",
-    titleEn: "⑧ The AI coach explains itself",
+    titleKo: "⑨ AI 코치가 근거와 함께 제안합니다",
+    titleEn: "⑨ The AI coach explains itself",
     bodyKo: "상황에 맞는 전술을 신뢰도와 근거 수치를 붙여 제안합니다. 경기 중에는 화면 아래쪽에도 즉시 조치가 뜹니다.",
     bodyEn: "Recommendations come with confidence and the numbers behind them. Urgent calls also appear over the pitch.",
   },
@@ -272,7 +283,7 @@ export function TutorialButton({ lang }: { lang: Lang }) {
   return (
     <button
       onClick={() => window.dispatchEvent(new Event("wcd:tour:open"))}
-      className="chip bg-white/5 text-white/60 transition hover:bg-white/10"
+      className="chip border border-team-home/50 bg-team-home/15 text-team-home transition hover:bg-team-home/25"
       title={t(lang, "tour.replay")}
     >
       ? {t(lang, "tour.help")}

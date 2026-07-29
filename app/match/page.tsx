@@ -36,6 +36,7 @@ import PostMatchReport from "@/components/PostMatchReport";
 import CardToast from "@/components/CardToast";
 import Tutorial, { TutorialButton } from "@/components/Tutorial";
 import PlayerDetailCard from "@/components/PlayerDetailCard";
+import MatchProgress from "@/components/MatchProgress";
 import TacticImpact from "@/components/TacticImpact";
 import TacticPresets from "@/components/TacticPresets";
 
@@ -160,14 +161,16 @@ export default function MatchPage() {
      * 즉시 띄우면 공이 아직 골대에서 먼데 '골'이 선언돼 무슨 일이 일어났는지 알 수 없다.
      * Pitch3D가 같은 1초 동안 시뮬레이션을 계속 돌려 슛을 보여준다.
      */
+    // Pitch3D의 SHOT_WINDOW와 맞춰야 한다 (패스 → 마무리 → 골망)
+    const SHOT_MS = 1900;
     const shotId = setTimeout(() => {
       setCelebration(goal);
       if (sound) goalRoar();
-    }, 1000);
+    }, SHOT_MS);
     const id = setTimeout(() => {
       setCelebration(null);
       if (resumeAfterCeleb.current) play();
-    }, 1000 + 4800);
+    }, SHOT_MS + 4800);
     goalTimers.current.push(shotId, id);
     // 타이머는 cleanup으로 취소하지 않는다 — 취소되면 세리머니가 영영 안 끝난다
     // playing/sound는 트리거 시점 값만 사용 — minute/match 변화에만 반응
@@ -246,7 +249,9 @@ export default function MatchPage() {
         {/* 중: 재생 + 택티컬 보드 */}
         <div className="space-y-4 xl:col-span-4">
           {/* 재생 컨트롤을 보드 위에 — 가장 먼저 누르게 되는 조작이다 */}
-          <div className="glass-strong rounded-2xl p-4" data-tour="playback">
+          <div className="glass-strong space-y-3 rounded-2xl p-4" data-tour="playback">
+            {/* 전·후반과 남은 시간을 먼저 보여준다 */}
+            <MatchProgress />
             <input
               type="range"
               min={0}
