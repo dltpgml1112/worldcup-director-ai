@@ -1,5 +1,8 @@
 # ⚽ World Cup Director AI · 월드컵 디렉터 AI
 
+### ▶ **[지금 바로 실행 — worldcup-director-ai.vercel.app](https://worldcup-director-ai.vercel.app)**
+> 설치·회원가입·API 키 없이 브라우저에서 바로 동작합니다. 아래 [심사자용 30초 체험 경로](#-심사자용-30초-체험-경로) 참고.
+
 > *당신이 감독이라면?* — **2026 월드컵**을 다시 쓰는 몰입형 전술 시뮬레이터.
 > *What if YOU were the coach?* — an immersive World Cup tactical simulator.
 
