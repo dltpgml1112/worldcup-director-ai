@@ -8,6 +8,7 @@ import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
 import {
   PITCH,
+  ballReactionPositions,
   convexHull,
   fromWorld,
   pitchFrame,
@@ -246,6 +247,8 @@ interface TokenProps {
   onAim?: (id: string | null) => void;
   /** 경고/퇴장 카드 보유 */
   booked?: "yellow" | "red" | null;
+  /** 컨트롤러가 매 프레임 갱신하는 실제 공 기준 목표 위치 */
+  liveTargets?: MutableRefObject<LiveTargets>;
 }
 
 function PlayerToken({
@@ -262,6 +265,7 @@ function PlayerToken({
   aimed,
   onAim,
   booked,
+  liveTargets,
 }: TokenProps) {
   const group = useRef<THREE.Group>(null);
   const { player, pos, gk } = placed;
@@ -273,6 +277,7 @@ function PlayerToken({
   );
 
   const spawned = useRef(false);
+  const live = useRef(new THREE.Vector3());
 
   useFrame((_, dt) => {
     const g = group.current;
@@ -283,9 +288,15 @@ function PlayerToken({
       spawned.current = true;
       return;
     }
+
+    // 컨트롤러가 실제 공 기준으로 계산한 목표가 있으면 그쪽을 쫓는다
+    const t = liveTargets?.current.get(player.id);
+    if (t && !dragging) live.current.set(t.x, 0, t.z);
+    else live.current.copy(target);
+
     // 드래그 중엔 즉시 추종, 그 외엔 부드럽게 보간
     const k = dragging ? 1 : 1 - Math.pow(0.0015, Math.min(dt, 0.1));
-    g.position.lerp(target, k);
+    g.position.lerp(live.current, k);
   });
 
   const jersey = gk ? "#c98500" : color;
@@ -418,7 +429,16 @@ interface Hop {
  * 짧은 패스는 낮게 굴러가고 긴 전환 패스는 크게 뜨며, 착지 후에는 튄다.
  * 회전 속도는 실제 수평 속도에 비례해서 굴러가는 느낌이 난다.
  */
-function Ball({ frame, minute }: { frame: PitchFrame; minute: number }) {
+function Ball({
+  frame,
+  minute,
+  ballWorld,
+}: {
+  frame: PitchFrame;
+  minute: number;
+  /** 매 프레임 실제 공 위치를 여기 기록해 선수 반응이 같은 공을 보게 한다 */
+  ballWorld: MutableRefObject<THREE.Vector3>;
+}) {
   const ref = useRef<THREE.Mesh>(null);
   const shadow = useRef<THREE.Mesh>(null);
   const hop = useRef<Hop | null>(null);
@@ -522,6 +542,8 @@ function Ball({ frame, minute }: { frame: PitchFrame; minute: number }) {
       spin.current.set(dz, 0, -dx).normalize();
       m.rotateOnWorldAxis(spin.current, angle);
     }
+
+    ballWorld.current.copy(m.position);
 
     if (shadow.current) {
       shadow.current.position.set(m.position.x, 0.035, m.position.z);
@@ -637,6 +659,62 @@ function BlockShape({ placed, color }: { placed: PlacedPlayer[]; color: string }
       )}
     </group>
   );
+}
+
+/* ─────────────────────────── 볼 반응 컨트롤러 ─────────────────────────── */
+
+/** 선수 id → 현재 목표 월드 좌표. 토큰이 매 프레임 읽어간다 */
+export type LiveTargets = Map<string, { x: number; z: number }>;
+
+/**
+ * 매 프레임 **실제 화면의 공** 위치로 양 팀 배치를 다시 계산한다.
+ *
+ * 이전에는 분 단위 앵커(ballTarget)에 반응했는데, 3D에서 눈에 보이는 공은
+ * 선수 사이를 홉으로 오가는 별개 좌표라 선수들이 보이지 않는 점으로 수렴했다.
+ * 그래서 "공을 따라간다"로 보이지 않았다. 여기서 그 둘을 하나로 묶는다.
+ *
+ * 토큰마다 계산하면 O(n²)이 되므로 컨트롤러 하나가 22명분을 한 번에 처리한다.
+ */
+function BallReactionController({
+  frame,
+  press,
+  ballWorld,
+  targets,
+  enabled,
+  dragId,
+}: {
+  frame: PitchFrame;
+  press: number;
+  ballWorld: MutableRefObject<THREE.Vector3>;
+  targets: MutableRefObject<LiveTargets>;
+  enabled: boolean;
+  dragId: string | null;
+}) {
+  useFrame(() => {
+    const map = targets.current;
+    map.clear();
+    if (!enabled) return;
+
+    const ball = fromWorld(ballWorld.current.x, ballWorld.current.z);
+
+    for (const [squad, attackingUp, side] of [
+      [frame.homeBase, true, "home"],
+      [frame.awayBase, false, "away"],
+    ] as const) {
+      const moved = ballReactionPositions(
+        squad.map((p) => ({ id: p.player.id, pos: p.pos, gk: p.gk })),
+        ball,
+        { press, hasBall: frame.possession === side, attackingUp }
+      );
+      moved.forEach((pos, id) => {
+        // 드래그 중인 선수는 커서를 정확히 따라야 하므로 반응에서 제외
+        if (id === dragId) return;
+        map.set(id, toWorld(pos));
+      });
+    }
+  });
+
+  return null;
 }
 
 /* ─────────────────────────── 점유 히트맵 ─────────────────────────── */
@@ -794,6 +872,10 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
     [match, players, tactics, minute, playing, drag]
   );
 
+  // 실제 화면의 공 위치 + 그 공을 기준으로 계산된 선수 목표 (매 프레임 갱신)
+  const ballWorld = useRef(new THREE.Vector3());
+  const liveTargets = useRef<LiveTargets>(new Map());
+
   const homeColor = match?.home.primary ?? "#3987e5";
   const awayColor = match?.away.primary ?? "#d95926";
 
@@ -860,8 +942,18 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
       {overlays.line && <LineMarker y={frame.awayLine} color={awayColor} />}
       {overlays.press && <PressZone ball={frame.ball} press={tactics.press} />}
 
+      {/* 공 반응 계산 — 토큰보다 먼저 등록되어야 같은 프레임에 반영된다 */}
+      <BallReactionController
+        frame={frame}
+        press={tactics.press}
+        ballWorld={ballWorld}
+        targets={liveTargets}
+        enabled={frame.live}
+        dragId={drag}
+      />
+
       {/* 상대 (드래그 불가) */}
-      {frame.away.map((p) => (
+      {frame.awayBase.map((p) => (
         <PlayerToken
           key={`away-${p.player.id}`}
           placed={p}
@@ -873,11 +965,12 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
           showInfluence={false}
           influenceColor={awayColor}
           booked={bookedById.get(p.player.id) ?? null}
+          liveTargets={liveTargets}
         />
       ))}
 
       {/* 우리 팀 (드래그 가능) */}
-      {frame.home.map((p) => (
+      {frame.homeBase.map((p) => (
         <PlayerToken
           key={`home-${p.player.id}`}
           placed={p}
@@ -893,10 +986,11 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
           aimed={subTarget === p.player.id}
           onAim={setSubTarget}
           booked={bookedById.get(p.player.id) ?? null}
+          liveTargets={liveTargets}
         />
       ))}
 
-      <Ball frame={frame} minute={minute} />
+      <Ball frame={frame} minute={minute} ballWorld={ballWorld} />
 
       <CameraRig camKey={camKey} controls={controls} />
       <OrbitControls

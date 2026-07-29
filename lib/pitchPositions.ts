@@ -151,6 +151,13 @@ export interface PitchFrame {
   live: boolean;
   /** 공 점유 팀 */
   possession: Side;
+  /**
+   * 공 반응을 적용하기 **전**의 배치.
+   * 3D 뷰는 이 기준 위에 매 프레임 실제 공 위치로 반응을 다시 계산한다
+   * (분 단위로 굳은 좌표를 쓰면 화면의 공과 어긋난다).
+   */
+  homeBase: PlacedPlayer[];
+  awayBase: PlacedPlayer[];
 }
 
 /**
@@ -165,50 +172,72 @@ export interface PitchFrame {
  *  4) 침투 — 공을 가진 팀이 최종 3분의 1에 들어가면 전방 선수가 골문 쪽으로 뛴다
  *  5) GK — 공 좌우를 따라가고, 공이 멀면 라인을 나온다
  */
-function applyBallReaction(
-  placed: PlacedPlayer[],
+export interface ReactionInput {
+  id: string;
+  pos: PitchPoint;
+  gk: boolean;
+}
+
+export interface ReactionOpts {
+  press: number;
+  hasBall: boolean;
+  attackingUp: boolean;
+}
+
+/** 공에 반응해 실제로 달라붙는 인원 수 */
+const CONVERGING = 3;
+
+/**
+ * 기준 배치 → 공 반응 후 좌표. 오프셋이 아니라 결과 좌표를 돌려준다.
+ *
+ * 3D 뷰는 이 함수를 **매 프레임 실제 공 위치로** 호출한다. 분 단위로 계산하면
+ * 선수가 화면의 공이 아니라 보이지 않는 앵커로 수렴해서 '공을 따라간다'로 보이지 않는다.
+ */
+export function ballReactionPositions(
+  players: ReactionInput[],
   ball: PitchPoint,
-  opts: { press: number; hasBall: boolean; attackingUp: boolean }
-): PlacedPlayer[] {
+  opts: ReactionOpts
+): Map<string, PitchPoint> {
   const { press, hasBall, attackingUp } = opts;
   const sideSign = ball.x - 50;
+  const result = new Map<string, PitchPoint>();
 
   // 공까지 거리 순위 (필드 플레이어만) — 압박/지원 인원 선정
-  const ranked = placed
-    .map((p, i) => ({ i, gk: p.gk, d: Math.hypot(p.pos.x - ball.x, p.pos.y - ball.y) }))
-    .filter((r) => !r.gk)
+  const ranked = players
+    .filter((p) => !p.gk)
+    .map((p) => ({ id: p.id, d: Math.hypot(p.pos.x - ball.x, p.pos.y - ball.y) }))
     .sort((a, b) => a.d - b.d);
-  const closest = new Map<number, number>(); // index -> 순위(0,1)
-  ranked.slice(0, 2).forEach((r, rank) => closest.set(r.i, rank));
+  const closest = new Map<string, number>();
+  ranked.slice(0, CONVERGING).forEach((r, rank) => closest.set(r.id, rank));
 
   // 공을 뺏으러 가는 팀이 더 강하게 수렴한다
-  const pressGain = (hasBall ? 0.14 : 0.30) + (press / 100) * (hasBall ? 0.06 : 0.26);
+  const pressGain = (hasBall ? 0.20 : 0.38) + (press / 100) * (hasBall ? 0.08 : 0.30);
 
-  return placed.map((placedPlayer, i) => {
-    const { pos, gk } = placedPlayer;
-    let { x, y } = pos;
+  for (const p of players) {
+    let { x, y } = p.pos;
 
-    if (gk) {
-      x += sideSign * 0.10;
+    if (p.gk) {
+      x += sideSign * 0.12;
       // 공이 우리 골문에서 멀면 골키퍼가 라인을 올린다 (스위퍼 키퍼)
       const ballDepth = attackingUp ? ball.y : 100 - ball.y;
       if (ballDepth > 65) y += (attackingUp ? 1 : -1) * Math.min(6, (ballDepth - 65) * 0.22);
-      return { ...placedPlayer, pos: { x: clamp(x, 5, 95), y: clamp(y, 2, 98) } };
+      result.set(p.id, { x: clamp(x, 5, 95), y: clamp(y, 2, 98) });
+      continue;
     }
 
     // 1) 볼사이드 횡이동 + 반대편 좁히기
-    x += sideSign * 0.20;
+    x += sideSign * 0.34;
     if (Math.sign(x - 50) !== Math.sign(sideSign) && sideSign !== 0) {
-      x += sideSign * 0.12;
+      x += sideSign * 0.16;
     }
 
     // 2) 종압축
-    y += (ball.y - y) * 0.05;
+    y += (ball.y - y) * 0.08;
 
-    // 3) 압박/지원 수렴
-    const rank = closest.get(i);
+    // 3) 압박/지원 수렴 — 가까운 순서대로 약해진다
+    const rank = closest.get(p.id);
     if (rank !== undefined) {
-      const k = rank === 0 ? pressGain : pressGain * 0.55;
+      const k = pressGain * [1, 0.62, 0.34][rank];
       x += (ball.x - x) * k;
       y += (ball.y - y) * k;
     }
@@ -222,8 +251,23 @@ function applyBallReaction(
       }
     }
 
-    return { ...placedPlayer, pos: { x: clamp(x, 3, 97), y: clamp(y, 3, 97) } };
-  });
+    result.set(p.id, { x: clamp(x, 3, 97), y: clamp(y, 3, 97) });
+  }
+
+  return result;
+}
+
+function applyBallReaction(
+  placed: PlacedPlayer[],
+  ball: PitchPoint,
+  opts: ReactionOpts
+): PlacedPlayer[] {
+  const moved = ballReactionPositions(
+    placed.map((p) => ({ id: p.player.id, pos: p.pos, gk: p.gk })),
+    ball,
+    opts
+  );
+  return placed.map((p) => ({ ...p, pos: moved.get(p.player.id) ?? p.pos }));
 }
 
 /**
@@ -303,6 +347,8 @@ export function pitchFrame(params: {
     awayLine: outfieldAway.length ? Math.max(...outfieldAway.map((a) => a.pos.y)) : 80,
     live,
     possession,
+    homeBase: home,
+    awayBase: away,
   };
 }
 
