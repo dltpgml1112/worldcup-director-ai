@@ -24,22 +24,25 @@ export default function TacticalPitch() {
   const benchDrag = useGame((s) => s.benchDrag);
   const subTarget = useGame((s) => s.subTarget);
   const setSubTarget = useGame((s) => s.setSubTarget);
+  const manualPositions = useGame((s) => s.manualPositions);
   const match = getMatch(matchId);
   const home = match?.home;
   const away = match?.away;
   const ref = useRef<HTMLDivElement>(null);
   const [drag, setDrag] = useState<string | null>(null);
 
+  const manualIds = useMemo(() => new Set(manualPositions), [manualPositions]);
   const frame = useMemo(
-    () => pitchFrame({ match, players, tactics, minute, playing, dragId: drag }),
-    [match, players, tactics, minute, playing, drag]
+    () => pitchFrame({ match, players, tactics, minute, playing, dragId: drag, manualIds }),
+    [match, players, tactics, minute, playing, drag, manualIds]
   );
   const live = frame.live;
 
   const toPct = (clientX: number, clientY: number) => {
     const r = ref.current!.getBoundingClientRect();
-    const px = clamp(((clientX - r.left) / r.width) * 100, 4, 96);
-    const py = clamp(((clientY - r.top) / r.height) * 100, 4, 96);
+    // 범위를 넓게 — 감독이 원하는 곳에 놓을 수 있어야 한다
+    const px = clamp(((clientX - r.left) / r.width) * 100, 2, 98);
+    const py = clamp(((clientY - r.top) / r.height) * 100, 2, 98);
     return { x: px, y: 100 - py };
   };
 

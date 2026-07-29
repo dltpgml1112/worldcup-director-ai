@@ -35,7 +35,9 @@ import SubstitutionPanel from "@/components/SubstitutionPanel";
 import PostMatchReport from "@/components/PostMatchReport";
 import CardToast from "@/components/CardToast";
 import Tutorial, { TutorialButton } from "@/components/Tutorial";
+import PlayerDetailCard from "@/components/PlayerDetailCard";
 import TacticImpact from "@/components/TacticImpact";
+import TacticPresets from "@/components/TacticPresets";
 
 export default function MatchPage() {
   const coachName = useGame((s) => s.coachName);
@@ -58,6 +60,8 @@ export default function MatchPage() {
   const whistleFor = useRef<number>(-1);
   const [cardEvent, setCardEvent] = useState<MatchEvent | null>(null);
   const cardFor = useRef<number>(-1);
+  const cardTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const goalTimers = useRef<ReturnType<typeof setTimeout>[]>([]);
 
   const match = getMatch(matchId);
   const end = match?.timeline[match.timeline.length - 1]?.minute ?? 90;
@@ -108,7 +112,12 @@ export default function MatchPage() {
     }
   }, [minute, match, sound]);
 
-  // 카드 — 휘슬 + 관중 야유, 방송 로어서드 토스트
+  /*
+   * 카드 — 휘슬 + 관중 야유, 방송 로어서드 토스트.
+   *
+   * 타이머를 cleanup으로 취소하면 안 된다. minute이 바뀔 때마다 effect가 재실행되면서
+   * 타이머가 죽어, 한 번 뜬 카드 팝업이 경기 끝까지 사라지지 않는다.
+   */
   useEffect(() => {
     if (!match) return;
     const ev = match.timeline.find((e) => e.minute === minute && e.type === "card");
@@ -116,11 +125,19 @@ export default function MatchPage() {
     cardFor.current = minute;
     setCardEvent(ev);
     if (sound) cardSound(ev.card === "red");
-    const id = setTimeout(() => setCardEvent(null), 3200);
-    return () => clearTimeout(id);
+    if (cardTimer.current) clearTimeout(cardTimer.current);
+    cardTimer.current = setTimeout(() => {
+      setCardEvent(null);
+      cardTimer.current = null;
+    }, 3200);
     // sound는 트리거 시점 값만 사용
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minute, match]);
+
+  // 언마운트 시에만 카드 타이머 정리
+  useEffect(() => () => {
+    if (cardTimer.current) clearTimeout(cardTimer.current);
+  }, []);
 
   // 크라우드 웅성거림을 모멘텀에 연동
   useEffect(() => {
@@ -136,18 +153,31 @@ export default function MatchPage() {
     if (!goal || celebFor.current === minute) return;
     celebFor.current = minute;
     resumeAfterCeleb.current = playing;
-    setCelebration(goal);
+    // 시계는 즉시 멈춘다 (안 그러면 배속에서 분이 계속 넘어간다)
     if (playing) pause();
-    if (sound) goalRoar();
-    // 3D 카메라 스윕 + 전술 카드를 읽고 누를 시간까지 확보 (Pitch3D 연출 4.6초와 맞춤)
+    /*
+     * 배너·함성은 슛이 골망에 닿은 뒤에 나온다.
+     * 즉시 띄우면 공이 아직 골대에서 먼데 '골'이 선언돼 무슨 일이 일어났는지 알 수 없다.
+     * Pitch3D가 같은 1초 동안 시뮬레이션을 계속 돌려 슛을 보여준다.
+     */
+    const shotId = setTimeout(() => {
+      setCelebration(goal);
+      if (sound) goalRoar();
+    }, 1000);
     const id = setTimeout(() => {
       setCelebration(null);
       if (resumeAfterCeleb.current) play();
-    }, 4800);
-    return () => clearTimeout(id);
+    }, 1000 + 4800);
+    goalTimers.current.push(shotId, id);
+    // 타이머는 cleanup으로 취소하지 않는다 — 취소되면 세리머니가 영영 안 끝난다
     // playing/sound는 트리거 시점 값만 사용 — minute/match 변화에만 반응
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [minute, match]);
+
+  // 언마운트 시에만 골 타이머 정리
+  useEffect(() => () => {
+    goalTimers.current.forEach(clearTimeout);
+  }, []);
 
   // 풀타임 도달 시 리포트 자동 오픈 (한 번만)
   useEffect(() => {
@@ -213,14 +243,9 @@ export default function MatchPage() {
           />
         </div>
 
-        {/* 중: 택티컬 보드 + 재생 */}
+        {/* 중: 재생 + 택티컬 보드 */}
         <div className="space-y-4 xl:col-span-4">
-          <TacticalBoard />
-
-          {/* 장면별 데이터 근거·한계 자막 */}
-          <DataProvenance match={match} minute={minute} />
-
-          {/* 재생 컨트롤 */}
+          {/* 재생 컨트롤을 보드 위에 — 가장 먼저 누르게 되는 조작이다 */}
           <div className="glass-strong rounded-2xl p-4" data-tour="playback">
             <input
               type="range"
@@ -249,21 +274,25 @@ export default function MatchPage() {
             </div>
           </div>
 
-          <SubstitutionPanel />
+          <TacticalBoard />
         </div>
 
-        {/* 우: 교체 추천(부하관리) + AI 코치 + 컨트롤 */}
+        {/* 우: 전술 · 스쿼드 · 중계를 한 화면에 (탭으로 나눴다가 되돌림 — 클릭 전환이 불편) */}
         <div className="space-y-4 xl:col-span-4">
-          <SubAdvisor match={match} snap={snap} minute={minute} />
-          <div data-tour="coach">
-            <AICoachPanel match={match} snap={snap} tactics={tactics} formation={formation} />
-          </div>
-          <div data-tour="tactics">
+          <div data-tour="tactics" className="space-y-3">
+            {/* 이름 있는 전술을 먼저 — 슬라이더만 있으면 뭘 만져야 할지 모른다 */}
+            <TacticPresets />
             {/* 조정하면 승리 확률·예상 스코어가 즉시 반응한다는 걸 눈으로 보여준다 */}
             <TacticImpact />
             <TacticalControls />
           </div>
+          <div data-tour="coach">
+            <AICoachPanel match={match} snap={snap} tactics={tactics} formation={formation} />
+          </div>
+          <SubAdvisor match={match} snap={snap} minute={minute} />
+          <SubstitutionPanel />
           <EventFeed match={match} minute={minute} />
+          <DataProvenance match={match} minute={minute} />
         </div>
       </div>
 
@@ -291,6 +320,9 @@ export default function MatchPage() {
 
       {/* 교체 알림 (방송 로어서드) */}
       <SubToast lang={lang} />
+
+      {/* 선수 상세 — 경기장에서 선수를 짧게 클릭하면 열린다 */}
+      <PlayerDetailCard />
 
       {/* 첫 방문 온보딩 — 헤더의 '?' 버튼으로 언제든 다시 볼 수 있다 */}
       <Tutorial />

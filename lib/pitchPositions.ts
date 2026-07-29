@@ -296,8 +296,13 @@ export function pitchFrame(params: {
    * 한 번 더 흔들면 배속에서 선수가 순간이동하는 것처럼 보인다.
    */
   smoothDrift?: boolean;
+  /** 감독이 직접 옮긴 선수 — 전술 변형을 적용하지 않고 놓은 자리를 유지한다 */
+  manualIds?: Set<string>;
 }): PitchFrame {
-  const { match, players, tactics, minute, playing, dragId = null, smoothDrift = false } = params;
+  const {
+    match, players, tactics, minute, playing,
+    dragId = null, smoothDrift = false, manualIds,
+  } = params;
   const momentum = match ? snapshotAt(match, minute, tactics).momentum : 0;
   const homeShift = clamp(momentum * 0.06, -7, 7);
   const awayShift = clamp(-momentum * 0.06, -7, 7);
@@ -308,7 +313,13 @@ export function pitchFrame(params: {
 
   const home: PlacedPlayer[] = players.map((p, i) => {
     const gk = p.role.toUpperCase() === "GK";
-    const b = dragId === p.id ? { x: p.x, y: p.y } : tacticBase(p, tactics);
+    /*
+     * 감독이 직접 옮긴 선수는 그 자리를 그대로 지킨다.
+     * 이전에는 드롭한 뒤 tacticBase()가 좌표를 다시 계산해서 선수가 딴 데로 튀었고,
+     * "위치 변경이 안 먹힌다"로 느껴졌다. 수동 배치가 전술 변형보다 우선한다.
+     */
+    const manual = dragId === p.id || manualIds?.has(p.id);
+    const b = manual ? { x: p.x, y: p.y } : tacticBase(p, tactics);
     if (!live || dragId === p.id) return { player: p, pos: b, gk };
     const { dx, dy } = smoothDrift ? { dx: 0, dy: 0 } : drift(i, minute, gk);
     return {

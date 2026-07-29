@@ -10,6 +10,7 @@ import { heatLegendStops } from "@/lib/pitchAnalytics";
 import TacticalPitch from "./TacticalPitch";
 import BenchStrip from "./BenchStrip";
 import LiveInsightOverlay from "./LiveInsightOverlay";
+import InfoTip from "./InfoTip";
 import { CAM_KEYS, type CamKey, type OverlayFlags } from "@/lib/pitchView";
 
 /** three.js는 브라우저 전용 — SSR을 끄고 필요할 때만 로드한다 */
@@ -136,9 +137,9 @@ export default function TacticalBoard() {
             <span
               className="chip"
               style={{ background: `${posTeam.primary}22`, color: posTeam.primary }}
-              title={t(lang, "board.possession")}
             >
               ● {posTeam.flag} {t(lang, "board.possession")}
+              <InfoTip text={t(lang, "tip.possession")} />
             </span>
           )}
           {mode === "3d" && (
@@ -252,9 +253,9 @@ export default function TacticalBoard() {
 
   const hud = (
     <div className="mt-3 grid grid-cols-3 gap-2">
-      <Metric label={t(lang, "board.compact")} value={`${metrics.compact}`} unit="/100" />
-      <Metric label={t(lang, "board.lineHeight")} value={`${metrics.lineHeight}`} unit="%" />
-      <Metric label={t(lang, "board.gap")} value={`${metrics.gap}`} unit="%" />
+      <Metric label={t(lang, "board.compact")} value={`${metrics.compact}`} unit="/100" tip={t(lang, "tip.compact")} />
+      <Metric label={t(lang, "board.lineHeight")} value={`${metrics.lineHeight}`} unit="%" tip={t(lang, "tip.lineHeight")} />
+      <Metric label={t(lang, "board.gap")} value={`${metrics.gap}`} unit="%" tip={t(lang, "tip.gap")} />
     </div>
   );
 
@@ -300,10 +301,13 @@ export default function TacticalBoard() {
   );
 }
 
-function Metric({ label, value, unit }: { label: string; value: string; unit: string }) {
+function Metric({ label, value, unit, tip }: { label: string; value: string; unit: string; tip?: string }) {
   return (
     <div className="rounded-md border border-surface-line bg-surface-panel px-2 py-1.5 text-center">
-      <div className="text-[9px] uppercase tracking-wide text-ink-muted">{label}</div>
+      <div className="flex items-center justify-center gap-1 text-[9px] uppercase tracking-wide text-ink-muted">
+        {label}
+        {tip && <InfoTip text={tip} />}
+      </div>
       <div className="metric-num font-display text-lg font-bold leading-tight text-ink-primary">
         {value}
         <span className="ml-0.5 text-[10px] font-semibold text-ink-muted">{unit}</span>

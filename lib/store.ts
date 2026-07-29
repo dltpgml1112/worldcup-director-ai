@@ -41,6 +41,19 @@ interface GameState {
   benchDrag: string | null; // 끌고 있는 벤치 선수 id
   subTarget: string | null; // 현재 조준 중인 필드 선수 id
 
+  /** 상세 카드를 띄울 선수 id (양 팀 모두 가능) */
+  selectedPlayer: string | null;
+  setSelectedPlayer: (id: string | null) => void;
+
+  /**
+   * 감독이 직접 옮긴 선수들.
+   * 이 선수들은 전술 슬라이더의 배치 변형을 받지 않고 놓은 자리를 지킨다 —
+   * "내 마음대로 배치"가 성립하려면 수동 배치가 자동 계산보다 우선해야 한다.
+   * 포메이션/프리셋을 바꾸면 초기화된다.
+   */
+  manualPositions: string[];
+  clearManualPositions: () => void;
+
   setLang: (l: Lang) => void;
   setLegendMode: (v: boolean) => void;
   startBenchDrag: (benchId: string) => void;
@@ -83,6 +96,11 @@ export const useGame = create<GameState>((set, get) => ({
   legendMode: false,
   benchDrag: null,
   subTarget: null,
+  selectedPlayer: null,
+  manualPositions: [],
+
+  setSelectedPlayer: (selectedPlayer) => set({ selectedPlayer }),
+  clearManualPositions: () => set({ manualPositions: [] }),
 
   setLang: (lang) => set({ lang }),
 
@@ -120,10 +138,14 @@ export const useGame = create<GameState>((set, get) => ({
       playing: false,
       formation: "433",
       tactics: { ...DEFAULT_TACTICS },
+      manualPositions: [],
+      selectedPlayer: null,
     });
   },
 
-  setFormation: (f) => set((s) => ({ formation: f, players: applyFormation(s.players, f) })),
+  // 포메이션을 새로 적용하면 수동 배치는 버린다 (그게 '새 배치를 적용'의 의미다)
+  setFormation: (f) =>
+    set((s) => ({ formation: f, players: applyFormation(s.players, f), manualPositions: [] })),
 
   setTactic: (k, v) => set((s) => ({ tactics: { ...s.tactics, [k]: v } })),
 
@@ -132,11 +154,16 @@ export const useGame = create<GameState>((set, get) => ({
       formation: formation ?? s.formation,
       players: formation ? applyFormation(s.players, formation) : s.players,
       tactics: tactics ? { ...s.tactics, ...tactics } : s.tactics,
+      manualPositions: formation ? [] : s.manualPositions,
     })),
 
   setPlayerPos: (id, x, y) =>
     set((s) => ({
       players: s.players.map((p) => (p.id === id ? { ...p, x, y } : p)),
+      // 직접 옮긴 선수로 기록 — 이후 전술 변형이 이 자리를 덮어쓰지 않는다
+      manualPositions: s.manualPositions.includes(id)
+        ? s.manualPositions
+        : [...s.manualPositions, id],
     })),
 
   makeSub: (offId, onId) =>

@@ -254,6 +254,45 @@ export function labelTexture(o: LabelOptions): THREE.Texture {
   });
 }
 
+/** 득점자 배너 — 세리머니 중 3D 위에 뜨는 이름표 */
+export function scorerBannerTexture(name: string, label: string, accent: string): THREE.Texture {
+  return memo(`scorer:${name}:${label}:${accent}`, () => {
+    const W = 512;
+    const H = 160;
+    const { c, ctx } = canvas2d(W, H);
+
+    // 배경 바
+    ctx.fillStyle = "rgba(10,13,18,0.88)";
+    ctx.beginPath();
+    const r = 18;
+    ctx.moveTo(r, 8);
+    ctx.arcTo(W - 8, 8, W - 8, H - 8, r);
+    ctx.arcTo(W - 8, H - 8, 8, H - 8, r);
+    ctx.arcTo(8, H - 8, 8, 8, r);
+    ctx.arcTo(8, 8, W - 8, 8, r);
+    ctx.fill();
+
+    // 좌측 강조 바
+    ctx.fillStyle = accent;
+    ctx.fillRect(8, 14, 10, H - 28);
+
+    ctx.textAlign = "left";
+    ctx.textBaseline = "middle";
+    ctx.fillStyle = accent;
+    ctx.font = "bold 40px system-ui, 'Segoe UI', sans-serif";
+    ctx.fillText(label, 34, 46);
+
+    ctx.fillStyle = "#ffffff";
+    ctx.font = "bold 58px system-ui, 'Segoe UI', 'Malgun Gothic', sans-serif";
+    const nm = name.length > 14 ? `${name.slice(0, 13)}…` : name;
+    ctx.fillText(nm, 34, 108);
+
+    const tex = new THREE.CanvasTexture(c);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    return tex;
+  });
+}
+
 /** 관중석 좌석 패턴 (어두운 계단 + 좌석 점) */
 export function standTexture(): THREE.Texture {
   return memo("stand", () => {

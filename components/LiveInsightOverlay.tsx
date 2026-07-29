@@ -69,6 +69,12 @@ export default function LiveInsightOverlay() {
         setShown(next);
         setApplied(false);
         shownAt.current = minute;
+        /*
+         * 경기를 멈추지 않는다.
+         * 한때 알림이 뜨면 자동 일시정지했는데, ⑴ 실제 감독은 경기를 멈추고 지시할 수
+         * 없고 ⑵ playing 토글이 카메라 연출 타이머를 취소해 조작 불능 버그를 만들었다.
+         * 대신 유지 시간(HOLD_MINUTES)을 길게 둬서 읽을 시간을 확보한다.
+         */
       }
     }
     // shown은 의도적으로 의존성에서 제외 — 표시 상태가 재평가를 다시 트리거하면 루프가 된다
@@ -136,11 +142,17 @@ export default function LiveInsightOverlay() {
                   {shown.metric.value}
                 </span>
               </span>
+              <button
+                onClick={close}
+                className="ml-auto rounded-md border border-surface-line px-2.5 py-1 text-[11px] font-semibold text-ink-secondary transition hover:bg-surface-hover"
+              >
+                {t(lang, "insight.skip")}
+              </button>
               {shown.apply && (
                 <button
                   onClick={apply}
                   disabled={applied}
-                  className="ml-auto rounded-md border px-2.5 py-1 text-[11px] font-semibold transition disabled:opacity-60"
+                  className="rounded-md border px-2.5 py-1 text-[11px] font-semibold transition disabled:opacity-60"
                   style={{ borderColor: `${color}66`, background: `${color}18`, color }}
                 >
                   {applied ? t(lang, "insight.applied") : t(lang, "insight.apply")}

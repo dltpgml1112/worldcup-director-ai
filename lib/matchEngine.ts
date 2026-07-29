@@ -95,11 +95,30 @@ export function snapshotAt(match: MatchData, minute: number, tactics: Tactics): 
   const base = 50 + mod.tempoPoss + (momentum > 0 ? 4 : -4);
   const homePoss = clamp(Math.round(base), 30, 70);
 
-  // 승리확률: 득점차 + 잔여 xG 우위 기반 로지스틱
+  /*
+   * 승리확률 — 득점차 + 잔여 xG 우위 + 전술 기여분의 로지스틱.
+   *
+   * 이전에는 공격 성향(attackBoost)과 오프사이드 트랩만 반영해서, 압박·템포·역습·
+   * 수비 라인을 아무리 움직여도 숫자가 그대로였다. 전술 도구에서 조작이 결과에
+   * 안 나타나면 '다시보기'가 된다. 각 항이 무엇을 뜻하는지 아래에 남긴다.
+   */
   const goalDiff = hs - as;
   const xgDiff = hx - ax;
   const timeLeft = Math.max(0, 90 - Math.min(minute, 90)) / 90;
-  const strength = goalDiff * 1.15 + xgDiff * 0.6 + (mod.attackBoost - 1) * 0.8 - mod.trapRisk;
+
+  // 후반으로 갈수록 강한 압박의 체력 대가가 커진다
+  const fatigue = mod.pressFatigue * (Math.max(0, minute - 60) / 30) * 0.7;
+
+  const strength =
+    goalDiff * 1.15 + // 실제 득점차가 가장 큰 요인
+    xgDiff * 0.6 + // 기회의 질 우위
+    (mod.attackBoost - 1) * 0.7 + // 공격 성향
+    mod.pressGain * 0.75 + // 압박으로 높은 위치에서 회수
+    mod.counterEdge * 0.6 + // 역습 옵션
+    (tactics.tempo / 100 - 0.5) * 0.3 - // 템포로 경기 흐름 장악
+    (mod.defenseRisk - 1) * 0.45 - // 라인·공격 과다로 내주는 뒷공간
+    mod.trapRisk -
+    fatigue;
   const logistic = 1 / (1 + Math.exp(-strength));
   let homeWin = logistic * 100;
   // 남은 시간이 많을수록 무승부 확률↑
