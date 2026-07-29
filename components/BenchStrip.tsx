@@ -64,7 +64,7 @@ export default function BenchStrip() {
   if (visible.length === 0 && !outOfSubs) return null;
 
   return (
-    <div className="mt-3">
+    <div className="mt-3" data-tour="bench">
       <div className="mb-1.5 flex items-center justify-between">
         <span className="text-[10px] font-semibold uppercase tracking-widest text-ink-muted">
           {t(lang, "bench.title")}

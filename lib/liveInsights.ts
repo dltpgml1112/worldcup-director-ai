@@ -235,6 +235,100 @@ function allInsights(input: InsightInput): LiveInsight[] {
   return out;
 }
 
+/**
+ * 득점/실점 직후 조언.
+ *
+ * 골 장면은 감독이 가장 크게 흔들리는 순간이다 — 세리머니가 도는 몇 초 동안
+ * "그래서 지금 뭘 바꿔야 하는가"를 같이 보여준다. 일반 인사이트와 달리
+ * 점수 상황과 남은 시간만으로 결정되므로 항상 하나가 나온다.
+ */
+export function postGoalAdvice(params: {
+  snap: MatchSnapshot;
+  tactics: Tactics;
+  scoredBy: "home" | "away";
+  minute: number;
+  lang: Lang;
+}): { title: string; detail: string; metric: { label: string; value: string }; apply: NonNullable<LiveInsight["apply"]> } {
+  const { snap, tactics, scoredBy, minute, lang } = params;
+  const ko = lang === "ko";
+  const [hs, as] = snap.score;
+  const diff = hs - as;
+  const left = Math.max(0, 90 - minute);
+  const late = minute > 70;
+  const M = (label: string, value: string) => ({ label, value });
+
+  if (scoredBy === "home") {
+    if (diff > 0 && late) {
+      return {
+        title: ko ? "리드 — 이제 경기를 닫아라" : "Ahead — now close it out",
+        detail: ko
+          ? `${minute}분 ${hs}–${as}. 남은 ${left}분은 지키는 시간이다. 라인을 내려 뒷공간을 지우고 템포를 낮춰 시간을 관리하라.`
+          : `${minute}' and ${hs}–${as} up. The remaining ${left} minutes are about control. Drop the line and slow the tempo.`,
+        metric: M(ko ? "잔여" : "Left", `${left}'`),
+        apply: { tactics: { line: 36, tempo: 40, attack: 44 } },
+      };
+    }
+    if (diff > 0) {
+      return {
+        title: ko ? "앞서간다 — 흐름을 놓지 마라" : "In front — keep the pressure on",
+        detail: ko
+          ? `${hs}–${as}. 지금 물러서면 상대가 살아난다. 압박을 유지해 두 번째 골로 승부를 끝내라.`
+          : `${hs}–${as}. Sitting back now invites them in. Hold the press and go for the second.`,
+        metric: M(ko ? "기세" : "Momentum", `+${Math.round(Math.abs(snap.momentum))}`),
+        apply: { tactics: { press: Math.min(78, tactics.press + 12), attack: Math.min(72, tactics.attack + 6) } },
+      };
+    }
+    if (diff === 0) {
+      return {
+        title: ko ? "동점 — 지금이 뒤집을 구간이다" : "Level — this is the window",
+        detail: ko
+          ? `${hs}–${as}. 득점 직후 5~10분은 상대가 가장 흔들리는 시간이다. 라인을 올리고 밀어붙여 역전까지 가라.`
+          : `${hs}–${as}. The 5–10 minutes after a goal are when the opponent is most rattled. Push the line up and take the lead.`,
+        metric: M(ko ? "잔여" : "Left", `${left}'`),
+        apply: { formation: "343", tactics: { attack: 76, line: 68, press: 70 } },
+      };
+    }
+    return {
+      title: ko ? "한 골 따라붙었다 — 계속 간다" : "One back — keep going",
+      detail: ko
+        ? `${hs}–${as}로 아직 뒤진다. 남은 ${left}분에 총력전이 필요하다. 공격 성향과 템포를 최대로 올려라.`
+        : `Still behind at ${hs}–${as} with ${left} minutes left. Go all in on Attack and Tempo.`,
+      metric: M(ko ? "득실차" : "Goal diff", `${diff}`),
+      apply: { tactics: { attack: 88, line: 74, tempo: 76 } },
+    };
+  }
+
+  // 실점
+  if (diff < 0) {
+    return {
+      title: ko ? "실점 — 되찾아야 한다" : "Conceded — you have to respond",
+      detail: ko
+        ? `${hs}–${as}로 뒤진다. 남은 ${left}분. ${late ? "지금부터는 위험을 감수해야 한다 — 라인을 끌어올려 상대를 가둬라." : "서두르지 말고 라인을 올려 점유를 되찾아라."}`
+        : `Down ${hs}–${as} with ${left} left. ${late ? "Time to take risks — push the line and trap them in." : "Don't panic — raise the line and win the ball back higher."}`,
+      metric: M(ko ? "잔여" : "Left", `${left}'`),
+      apply: { tactics: { attack: late ? 86 : 70, line: late ? 76 : 64, tempo: 72 } },
+    };
+  }
+  if (diff === 0) {
+    return {
+      title: ko ? "동점을 허용했다 — 먼저 안정시켜라" : "Pegged back — steady first",
+      detail: ko
+        ? `${hs}–${as}. 실점 직후 연속 실점이 가장 많이 나온다. 5분만 라인을 내려 안정시킨 뒤 다시 올려라.`
+        : `${hs}–${as}. Teams concede again most often right after conceding. Steady for five minutes, then push again.`,
+      metric: M(ko ? "스코어" : "Score", `${hs}–${as}`),
+      apply: { tactics: { line: Math.max(34, tactics.line - 16), press: Math.max(38, tactics.press - 10) } },
+    };
+  }
+  return {
+    title: ko ? "리드는 유지 중 — 뒷공간을 지워라" : "Still ahead — kill the space behind",
+    detail: ko
+      ? `${hs}–${as}로 앞서 있지만 흐름이 넘어갔다. 라인을 내려 뒷공간을 없애고 다시 잡아라.`
+      : `${hs}–${as} up but the momentum shifted. Drop the line to erase the space in behind and reset.`,
+    metric: M(ko ? "스코어" : "Score", `${hs}–${as}`),
+    apply: { tactics: { line: 40, press: Math.max(40, tactics.press - 8) } },
+  };
+}
+
 export const SEVERITY_COLOR: Record<LiveInsight["severity"], string> = {
   urgent: "#d03b3b",
   opportunity: "#0ca30c",

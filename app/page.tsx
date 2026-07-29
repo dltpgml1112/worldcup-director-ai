@@ -1,9 +1,19 @@
 "use client";
 
 import { useState } from "react";
+import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
 import CrowdCanvas from "@/components/CrowdCanvas";
+
+/**
+ * three.js는 브라우저 전용이고 무겁다 — 지연 로드해서 히어로 텍스트가 먼저 뜨게 하고,
+ * 로딩 중에는 기존 관중 캔버스가 배경을 채운다.
+ */
+const HeroPitch3D = dynamic(() => import("@/components/HeroPitch3D"), {
+  ssr: false,
+  loading: () => null,
+});
 import LangToggle from "@/components/LangToggle";
 import { COUNTRIES, YEARS, findMatch } from "@/data/matches";
 import { useGame } from "@/lib/store";
@@ -29,8 +39,13 @@ export default function Home() {
 
   return (
     <main className="relative min-h-screen overflow-hidden">
+      {/* 배경: 3D 경기장. 로드 전에는 관중 캔버스가 자리를 채운다 */}
       <CrowdCanvas className="absolute inset-0 h-full w-full opacity-20" />
-      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-surface-base/40 via-surface-base/60 to-surface-base" />
+      <div className="absolute inset-0">
+        <HeroPitch3D />
+      </div>
+      {/* 텍스트 가독성 확보 — 위아래를 어둡게 눌러 카드/헤드라인이 뜨게 한다 */}
+      <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-surface-base/85 via-surface-base/55 to-surface-base/95" />
 
       <div className="absolute right-4 top-4 z-20">
         <LangToggle />

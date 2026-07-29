@@ -86,14 +86,21 @@ export default function TacticalBoard() {
       compact: compactness(f.home),
       lineHeight: Math.round(f.homeLine),
       gap: Math.round(f.awayLine - f.homeLine),
+      possession: f.possession,
+      live: f.live,
     };
   }, [match, players, tactics, minute, playing]);
+
+  const posTeam = metrics.possession === "home" ? match?.home : match?.away;
 
   const toggleOverlay = (k: keyof OverlayFlags) =>
     setOverlays((o) => ({ ...o, [k]: !o[k] }));
 
   const viewport = (
-    <div className={`relative ${expanded ? "h-full w-full" : "aspect-[3/4] w-full"}`}>
+    <div
+      data-tour="board"
+      className={`relative ${expanded ? "h-full w-full" : "aspect-[3/4] w-full"}`}
+    >
       {mode === "3d" ? (
         <WebGLBoundary fallback={<TacticalPitch />}>
           <Pitch3D camKey={camKey} overlays={overlays} cinematic={cinematic} heatPlayer={heatPlayer} />
@@ -124,6 +131,16 @@ export default function TacticalBoard() {
           ))}
         </div>
         <div className="flex items-center gap-1.5">
+          {/* 지금 누가 공을 갖고 있는가 — 없으면 상대끼리 패스하는 장면이 이해되지 않는다 */}
+          {metrics.live && posTeam && (
+            <span
+              className="chip"
+              style={{ background: `${posTeam.primary}22`, color: posTeam.primary }}
+              title={t(lang, "board.possession")}
+            >
+              ● {posTeam.flag} {t(lang, "board.possession")}
+            </span>
+          )}
           {mode === "3d" && (
             <button
               onClick={() => setCinematic((v) => !v)}
@@ -145,7 +162,7 @@ export default function TacticalBoard() {
 
       {/* 카메라 프리셋 */}
       {mode === "3d" && (
-        <div className="mb-2 flex flex-wrap items-center gap-1">
+        <div className="mb-2 flex flex-wrap items-center gap-1" data-tour="camera">
           {CAM_KEYS.map((k) => (
             <button
               key={k}
@@ -164,7 +181,7 @@ export default function TacticalBoard() {
 
       {/* 전술 오버레이 토글 */}
       {mode === "3d" && (
-        <div className="mb-2 flex flex-wrap items-center gap-1">
+        <div className="mb-2 flex flex-wrap items-center gap-1" data-tour="overlays">
           {OVERLAY_KEYS.map(({ key, i18n, color }) => (
             <button
               key={key}

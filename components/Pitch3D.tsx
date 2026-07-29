@@ -1,6 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type MutableRefObject } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type MutableRefObject,
+} from "react";
 import { Canvas, useFrame, useThree, type ThreeEvent } from "@react-three/fiber";
 import { Line, OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
@@ -9,7 +16,9 @@ import { getMatch } from "@/data/matches";
 import {
   PITCH,
   ballReactionPositions,
+  clamp,
   convexHull,
+  drift,
   fromWorld,
   pitchFrame,
   toWorld,
@@ -17,15 +26,9 @@ import {
   type PitchPoint,
   type PlacedPlayer,
 } from "@/lib/pitchPositions";
-import {
-  TURF_MARGIN,
-  ballTexture,
-  labelTexture,
-  netTexture,
-  shadowTexture,
-  standTexture,
-  turfTexture,
-} from "@/lib/pitchTextures";
+import { ballTexture, labelTexture, shadowTexture } from "@/lib/pitchTextures";
+import { CornerFlags, CrowdFlashes, Goal, PitchLights, Stadium, Turf } from "./PitchScenery";
+import PlayerFigure from "./PlayerFigure";
 import {
   HEAT_NX,
   HEAT_NY,
@@ -35,7 +38,7 @@ import {
   type OccupancyResult,
 } from "@/lib/pitchAnalytics";
 import type { Lang } from "@/lib/i18n";
-import type { Player, Tactics } from "@/lib/types";
+import type { Player, Side, Tactics } from "@/lib/types";
 import { bookingsAt, matchPlayer } from "@/lib/cards";
 import { CAM_PRESETS, type CamKey, type OverlayFlags } from "@/lib/pitchView";
 
@@ -49,183 +52,13 @@ function vec(p: PitchPoint, y = 0) {
   return new THREE.Vector3(w.x, y, w.z);
 }
 
-/* ─────────────────────────── 스타디움 ─────────────────────────── */
-
-const TILT = Math.atan2(11.5, 22);
-
-function Stand({ axis, sign, span }: { axis: "x" | "z"; sign: 1 | -1; span: number }) {
-  const tex = standTexture();
-  const half = 12.4;
-  const d0 = axis === "x" ? PITCH.width / 2 + TURF_MARGIN + 4 : PITCH.length / 2 + TURF_MARGIN + 4;
-  const cx = Math.cos(TILT) * half;
-  const cy = 1.5 + Math.sin(TILT) * half;
-
-  const position: [number, number, number] =
-    axis === "x" ? [sign * (d0 + cx), cy, 0] : [0, cy, sign * (d0 + cx)];
-  const rotation: [number, number, number] =
-    axis === "x" ? [0, 0, sign === 1 ? TILT : -TILT] : [sign === 1 ? -TILT : TILT, 0, 0];
-  const size: [number, number, number] = axis === "x" ? [24.8, 1.2, span] : [span, 1.2, 24.8];
-
-  // 좌석 점(관중) — 스탠드 로컬 좌표에 뿌린 뒤 같은 그룹 변환을 태운다
-  const crowd = useMemo(() => {
-    const count = 900;
-    const pos = new Float32Array(count * 3);
-    const col = new Float32Array(count * 3);
-    const palette = ["#3987e5", "#d95926", "#e8ecf1", "#9aa4b2", "#c98500"].map(
-      (c) => new THREE.Color(c)
-    );
-    for (let i = 0; i < count; i++) {
-      const a = (Math.random() - 0.5) * 24;
-      const b = (Math.random() - 0.5) * span * 0.98;
-      if (axis === "x") {
-        pos[i * 3] = a;
-        pos[i * 3 + 2] = b;
-      } else {
-        pos[i * 3] = b;
-        pos[i * 3 + 2] = a;
-      }
-      pos[i * 3 + 1] = 0.9;
-      const c = palette[Math.floor(Math.random() * palette.length)];
-      col[i * 3] = c.r;
-      col[i * 3 + 1] = c.g;
-      col[i * 3 + 2] = c.b;
-    }
-    return { pos, col, count };
-  }, [axis, span]);
-
-  return (
-    <group position={position} rotation={rotation}>
-      <mesh>
-        <boxGeometry args={size} />
-        <meshStandardMaterial map={tex} color="#161c25" roughness={0.95} />
-      </mesh>
-      <points>
-        <bufferGeometry>
-          <bufferAttribute attach="attributes-position" args={[crowd.pos, 3]} />
-          <bufferAttribute attach="attributes-color" args={[crowd.col, 3]} />
-        </bufferGeometry>
-        <pointsMaterial size={0.62} vertexColors sizeAttenuation transparent opacity={0.72} />
-      </points>
-    </group>
-  );
-}
-
-function Floodlight({ x, z }: { x: number; z: number }) {
-  return (
-    <group position={[x, 0, z]}>
-      <mesh position={[0, 14, 0]}>
-        <cylinderGeometry args={[0.35, 0.5, 28, 8]} />
-        <meshStandardMaterial color="#2a323d" roughness={0.8} />
-      </mesh>
-      <mesh position={[0, 28.6, 0]} rotation={[0, 0, 0]}>
-        <boxGeometry args={[6, 3, 1]} />
-        <meshStandardMaterial color="#0f141b" emissive="#fdf6d8" emissiveIntensity={1.6} />
-      </mesh>
-    </group>
-  );
-}
-
-function Stadium() {
-  const spanX = PITCH.length + TURF_MARGIN * 2 + 30;
-  const spanZ = PITCH.width + TURF_MARGIN * 2 + 30;
-  const cx = PITCH.width / 2 + TURF_MARGIN + 24;
-  const cz = PITCH.length / 2 + TURF_MARGIN + 24;
-  return (
-    <group>
-      {/* 콘코스 바닥 */}
-      <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.15, 0]}>
-        <planeGeometry args={[260, 300]} />
-        <meshStandardMaterial color="#0b0f14" roughness={1} />
-      </mesh>
-      <Stand axis="x" sign={1} span={spanX} />
-      <Stand axis="x" sign={-1} span={spanX} />
-      <Stand axis="z" sign={1} span={spanZ} />
-      <Stand axis="z" sign={-1} span={spanZ} />
-      <Floodlight x={cx} z={cz} />
-      <Floodlight x={-cx} z={cz} />
-      <Floodlight x={cx} z={-cz} />
-      <Floodlight x={-cx} z={-cz} />
-    </group>
-  );
-}
-
-/* ─────────────────────────── 골대 · 코너 깃발 ─────────────────────────── */
-
-function Goal({ sign }: { sign: 1 | -1 }) {
-  const net = netTexture();
-  const w = 7.32;
-  const h = 2.44;
-  const d = 2;
-  const z = (sign * PITCH.length) / 2;
-  const post = (
-    <cylinderGeometry args={[0.07, 0.07, h, 10]} />
-  );
-  return (
-    <group position={[0, 0, z]}>
-      <mesh position={[-w / 2, h / 2, 0]}>{post}<meshStandardMaterial color="#f2f5f9" roughness={0.4} /></mesh>
-      <mesh position={[w / 2, h / 2, 0]}>{post}<meshStandardMaterial color="#f2f5f9" roughness={0.4} /></mesh>
-      <mesh position={[0, h, 0]} rotation={[0, 0, Math.PI / 2]}>
-        <cylinderGeometry args={[0.07, 0.07, w, 10]} />
-        <meshStandardMaterial color="#f2f5f9" roughness={0.4} />
-      </mesh>
-      {/* 뒷그물 */}
-      <mesh position={[0, h / 2, sign * d]}>
-        <planeGeometry args={[w, h]} />
-        <meshBasicMaterial map={net} transparent opacity={0.5} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-      {/* 옆그물 */}
-      {[-1, 1].map((s) => (
-        <mesh key={s} position={[(s * w) / 2, h / 2, (sign * d) / 2]} rotation={[0, Math.PI / 2, 0]}>
-          <planeGeometry args={[d, h]} />
-          <meshBasicMaterial map={net} transparent opacity={0.38} side={THREE.DoubleSide} depthWrite={false} />
-        </mesh>
-      ))}
-      {/* 윗그물 */}
-      <mesh position={[0, h, (sign * d) / 2]} rotation={[-Math.PI / 2, 0, 0]}>
-        <planeGeometry args={[w, d]} />
-        <meshBasicMaterial map={net} transparent opacity={0.34} side={THREE.DoubleSide} depthWrite={false} />
-      </mesh>
-    </group>
-  );
-}
-
-function CornerFlags() {
-  const pts: [number, number][] = [];
-  for (const sx of [-1, 1]) for (const sz of [-1, 1]) pts.push([(sx * PITCH.width) / 2, (sz * PITCH.length) / 2]);
-  return (
-    <group>
-      {pts.map(([x, z], i) => (
-        <group key={i} position={[x, 0, z]}>
-          <mesh position={[0, 0.75, 0]}>
-            <cylinderGeometry args={[0.05, 0.05, 1.5, 6]} />
-            <meshStandardMaterial color="#e8ecf1" />
-          </mesh>
-          <mesh position={[0.3, 1.3, 0]}>
-            <planeGeometry args={[0.6, 0.4]} />
-            <meshStandardMaterial color="#c98500" side={THREE.DoubleSide} />
-          </mesh>
-        </group>
-      ))}
-    </group>
-  );
-}
-
-/* ─────────────────────────── 잔디 (드래그 평면) ─────────────────────────── */
-
-function Turf({ onDragMove }: { onDragMove: (p: PitchPoint) => void }) {
-  const tex = turfTexture();
-  return (
-    <mesh
-      rotation={[-Math.PI / 2, 0, 0]}
-      onPointerMove={(e: ThreeEvent<PointerEvent>) => {
-        const p = fromWorld(e.point.x, e.point.z);
-        onDragMove(p);
-      }}
-    >
-      <planeGeometry args={[PITCH.width + TURF_MARGIN * 2, PITCH.length + TURF_MARGIN * 2]} />
-      <meshStandardMaterial map={tex} roughness={0.95} metalness={0} />
-    </mesh>
-  );
+/**
+ * 세리머니 집결 지점 — 득점팀이 달려가 모이는 코너 부근.
+ * 카메라와 선수 배치가 **같은 지점**을 써야 한다. 따로 계산하면
+ * 카메라가 텅 빈 골대를 비추고 선수들은 화면 밖에서 뛰게 된다.
+ */
+function celebrationSpot(side: Side): PitchPoint {
+  return { x: 74, y: side === "home" ? 82 : 18 };
 }
 
 /* ─────────────────────────── 선수 토큰 ─────────────────────────── */
@@ -249,6 +82,14 @@ interface TokenProps {
   booked?: "yellow" | "red" | null;
   /** 컨트롤러가 매 프레임 갱신하는 실제 공 기준 목표 위치 */
   liveTargets?: MutableRefObject<LiveTargets>;
+  /** 현재 공을 잡고 있는 선수 id (매 프레임 갱신) */
+  carrier?: MutableRefObject<string | null>;
+  /** 패스를 받으러 가는 선수 id */
+  receiver?: MutableRefObject<string | null>;
+  /** 공 주변에서 태클·패스로 관여 가능한 선수들 */
+  nearBall?: MutableRefObject<Set<string>>;
+  /** 세리머니 중이면 제자리 점프 */
+  partying?: boolean;
 }
 
 function PlayerToken({
@@ -266,7 +107,16 @@ function PlayerToken({
   onAim,
   booked,
   liveTargets,
+  carrier,
+  receiver,
+  nearBall,
+  partying,
 }: TokenProps) {
+  const carrierRing = useRef<THREE.Mesh>(null);
+  const body = useRef<THREE.Group>(null);
+  /** 이동 속도(m/s) — 달리기 애니메이션 강도를 결정한다 */
+  const speed = useRef(0);
+  const prevPos = useRef(new THREE.Vector3());
   const group = useRef<THREE.Group>(null);
   const { player, pos, gk } = placed;
   const target = useMemo(() => vec(pos), [pos.x, pos.y]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -297,12 +147,67 @@ function PlayerToken({
     // 드래그 중엔 즉시 추종, 그 외엔 부드럽게 보간
     const k = dragging ? 1 : 1 - Math.pow(0.0015, Math.min(dt, 0.1));
     g.position.lerp(live.current, k);
+
+    // 실제 이동 속도 측정 → 달리기 애니메이션. 진행 방향으로 몸을 돌린다.
+    const step = Math.max(1e-4, Math.min(dt, 0.1));
+    const moved = g.position.distanceTo(prevPos.current);
+    speed.current = THREE.MathUtils.lerp(speed.current, moved / step, 0.2);
+    if (moved > 0.008) {
+      const yaw = Math.atan2(g.position.x - prevPos.current.x, g.position.z - prevPos.current.z);
+      g.rotation.y = THREE.MathUtils.lerp(g.rotation.y, yaw, 0.15);
+    }
+    prevPos.current.copy(g.position);
+
+    /*
+     * 공 관여 표시 — 세 단계. 양 팀 모두 동일하게 적용된다.
+     *   ① 소유 중      진한 링 + 맥박
+     *   ② 패스 받는 중  중간 밝기
+     *   ③ 관여 가능    연한 링 (공 주변 14m — 태클 또는 패스 대상)
+     * ③이 있어야 "누가 압박하러 붙었고 누가 패스 받을 위치인지"가 전술적으로 읽힌다.
+     */
+    const r = carrierRing.current;
+    if (r) {
+      const has = !partying && carrier?.current === player.id;
+      const incoming = !partying && !has && receiver?.current === player.id;
+      const involved = !partying && !has && !incoming && !!nearBall?.current.has(player.id);
+      r.visible = has || incoming || involved;
+      const m2 = r.material as THREE.MeshBasicMaterial;
+      if (has) {
+        r.scale.setScalar(1 + Math.sin(performance.now() * 0.006) * 0.09);
+        m2.opacity = 0.92;
+      } else if (incoming) {
+        r.scale.setScalar(0.78);
+        m2.opacity = 0.42;
+      } else if (involved) {
+        r.scale.setScalar(0.62);
+        m2.opacity = 0.18;
+      }
+    }
+
+    // 세리머니 점프 — 선수마다 위상을 어긋나게 해서 한꺼번에 뛰지 않게 한다
+    const b = body.current;
+    if (b) {
+      if (partying && !gk) {
+        const t = performance.now() * 0.006 + player.num * 0.9;
+        b.position.y = Math.abs(Math.sin(t)) * 1.1;
+        b.rotation.y = Math.sin(t * 0.5) * 0.6;
+      } else if (b.position.y !== 0) {
+        b.position.y *= 0.85;
+        b.rotation.y *= 0.85;
+      }
+    }
   });
 
   const jersey = gk ? "#c98500" : color;
 
   return (
     <group ref={group}>
+      {/* 공 소유 표시 — 팀 색 링. 이게 없으면 '누가 패스를 주고받는지' 알 수 없다 */}
+      <mesh ref={carrierRing} rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.09, 0]} visible={false}>
+        <ringGeometry args={[1.35, 1.95, 40]} />
+        <meshBasicMaterial color={color} transparent opacity={0.9} depthWrite={false} />
+      </mesh>
+
       {/* 발밑 그림자 */}
       <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, 0.02, 0]}>
         <planeGeometry args={[2.2, 2.2]} />
@@ -338,19 +243,15 @@ function PlayerToken({
         </mesh>
       )}
 
-      {/* 몸통 */}
-      <mesh position={[0, 0.4, 0]}>
-        <cylinderGeometry args={[0.26, 0.3, 0.8, 12]} />
-        <meshStandardMaterial color="#151a21" roughness={0.9} />
-      </mesh>
-      <mesh position={[0, 1.25, 0]}>
-        <cylinderGeometry args={[0.36, 0.32, 1.0, 14]} />
-        <meshStandardMaterial color={jersey} roughness={0.65} />
-      </mesh>
-      <mesh position={[0, 1.95, 0]}>
-        <sphereGeometry args={[0.24, 16, 12]} />
-        <meshStandardMaterial color="#c99e78" roughness={0.8} />
-      </mesh>
+      {/* 선수 형상 — 세리머니 때 이 그룹만 튀어오른다 (그림자·링은 땅에 남는다) */}
+      <group ref={body}>
+        <PlayerFigure
+          jersey={jersey}
+          speedRef={speed}
+          celebrating={partying && !gk}
+          phase={player.num * 0.7}
+        />
+      </group>
 
       {/* 경고 카드 — 번호 뱃지 옆에 세워 어느 각도에서도 보이게 */}
       {booked && (
@@ -419,6 +320,10 @@ interface Hop {
   apex: number; // 최고 높이(m)
   dur: number; // 초
   t: number;
+  /** 이 패스를 받는 선수 id. 도착하면 이 선수가 공을 소유한다 */
+  toId: string | null;
+  /** 도착 후 공을 잡고 있는 시간(초) — 이 동안만 소유 표시가 뜬다 */
+  dwell: number;
 }
 
 /**
@@ -433,17 +338,31 @@ function Ball({
   frame,
   minute,
   ballWorld,
+  celebrating,
+  carrier,
+  receiver,
 }: {
   frame: PitchFrame;
   minute: number;
   /** 매 프레임 실제 공 위치를 여기 기록해 선수 반응이 같은 공을 보게 한다 */
   ballWorld: MutableRefObject<THREE.Vector3>;
+  /** 세리머니 중엔 공이 골망 안에 머문다 */
+  celebrating?: boolean;
+  /** 공을 실제로 잡고 있는 선수 id (패스 이동 중에는 null) */
+  carrier: MutableRefObject<string | null>;
+  /**
+   * 패스가 날아가는 동안의 수신 예정 선수.
+   * 이게 없으면 패스 시간(최대 1.5초) 내내 아무 표시도 없어서 깜빡이는 것처럼 보인다.
+   */
+  receiver: MutableRefObject<string | null>;
 }) {
   const ref = useRef<THREE.Mesh>(null);
   const shadow = useRef<THREE.Mesh>(null);
   const hop = useRef<Hop | null>(null);
   const hopIndex = useRef(0);
   const spin = useRef(new THREE.Vector3());
+  /** 도착 후 남은 소유 시간 */
+  const holding = useRef(0);
 
   // 렌더 사이에 최신 프레임을 읽기 위한 참조 (useFrame 클로저 고정 방지)
   const frameRef = useRef(frame);
@@ -461,27 +380,41 @@ function Ball({
     // 공이 전술적 위치에서 너무 멀어졌으면 그쪽으로 크게 전환한다
     const drifted = currentPos.distanceTo(anchor) > 22;
 
+    const squadAll = (f.possession === "home" ? f.home : f.away).filter((p) => !p.gk);
+
     let dest: THREE.Vector3;
+    let toId: string | null = null;
     if (drifted || !f.live) {
       dest = anchor;
+      // 슛·골처럼 전술 위치로 크게 전환할 때도 '누가 잡는지'는 있어야 한다.
+      // 그 지점에 가장 가까운 점유팀 선수가 받는 것으로 본다.
+      let bestD = Infinity;
+      for (const p of squadAll) {
+        const d = vec(p.pos, 0).distanceTo(anchor);
+        if (d < bestD) {
+          bestD = d;
+          toId = p.player.id;
+        }
+      }
     } else {
       // 점유 팀 선수 중 하나에게 패스 — 전방 패스에 가중
-      const squad = (f.possession === "home" ? f.home : f.away).filter((p) => !p.gk);
+      const squad = squadAll;
       if (squad.length === 0) {
         dest = anchor;
       } else {
         const forwardSign = f.possession === "home" ? 1 : -1;
         const scored = squad
-          .map((p) => {
+          .map((p, idx) => {
             const w = vec(p.pos, 0);
             const dist = w.distanceTo(currentPos);
             // 너무 가깝지도 멀지도 않은 선수 + 전진 방향 선호
             const near = Math.exp(-Math.pow(dist - 16, 2) / 320);
             const forward = ((p.pos.y - f.ball.y) * forwardSign) / 100;
-            return { w, s: near * (1 + forward * 0.8) + hashRand(m, i + squad.indexOf(p)) * 0.25 };
+            return { w, id: p.player.id, s: near * (1 + forward * 0.8) + hashRand(m, i + idx) * 0.25 };
           })
           .sort((a, b) => b.s - a.s);
         dest = scored[0].w;
+        toId = scored[0].id;
       }
     }
 
@@ -492,9 +425,12 @@ function Ball({
     const apex = lofted ? Math.min(9, 1.6 + dist * 0.14) : 0.1 + dist * 0.012;
     // 속도: 롱패스가 더 빠르지만 거리 비례로 시간이 늘어난다
     const speed = lofted ? 26 : 17;
-    const dur = Math.max(0.35, Math.min(2.4, dist / speed));
+    // 이동 시간 상한을 낮췄다 — 길면 '잡고 있는' 구간보다 훨씬 길어져 표시가 끊겨 보인다
+    const dur = Math.max(0.35, Math.min(1.5, dist / speed));
+    // 받은 선수가 잡고 있다가 다음 패스를 준다 (소유 표시가 진하게 뜨는 구간)
+    const dwell = toId ? 0.7 + hashRand(m, i + 977) * 0.6 : 0;
 
-    return { from: currentPos.clone(), to: dest, apex, dur, t: 0 };
+    return { from: currentPos.clone(), to: dest, apex, dur, t: 0, toId, dwell };
   };
 
   useFrame((_, dt) => {
@@ -502,18 +438,54 @@ function Ball({
     if (!m) return;
     const step = Math.min(dt, 0.05);
 
+    // 세리머니 중엔 골망 안에 정지 (다음 홉을 고르지 않는다)
+    if (celebrating) {
+      const goalZ = (frameRef.current.possession === "home" ? -1 : 1) * (PITCH.length / 2 + 1.2);
+      m.position.lerp(V.set(0, BALL_R, goalZ), 1 - Math.pow(0.02, step));
+      ballWorld.current.copy(m.position);
+      if (shadow.current) shadow.current.position.set(m.position.x, 0.035, m.position.z);
+      hop.current = null;
+      holding.current = 0;
+      carrier.current = null;
+      receiver.current = null;
+      return;
+    }
+
     if (!hop.current) {
       const start = vec(frameRef.current.ball, 0);
       m.position.set(start.x, BALL_R, start.z);
       hop.current = pickNext(m.position.clone());
+      holding.current = 0;
     }
 
     const h = hop.current;
+
+    // 받은 선수가 공을 잡고 있는 구간 — 소유 표시가 진하게 뜬다
+    if (holding.current > 0) {
+      holding.current -= step;
+      carrier.current = h.toId;
+      receiver.current = null;
+      ballWorld.current.copy(m.position);
+      if (shadow.current) {
+        shadow.current.position.set(m.position.x, 0.035, m.position.z);
+        shadow.current.scale.setScalar(1);
+      }
+      if (holding.current <= 0) {
+        hop.current = pickNext(m.position.clone());
+        carrier.current = null;
+      }
+      return;
+    }
+
+    // 공이 이동 중 — 아무도 '잡고' 있진 않지만 받을 선수는 흐리게 표시한다
+    carrier.current = null;
+    receiver.current = h.toId;
     h.t += step / h.dur;
 
     if (h.t >= 1) {
       m.position.set(h.to.x, BALL_R, h.to.z);
-      hop.current = pickNext(m.position.clone());
+      holding.current = h.dwell;
+      if (h.dwell <= 0) hop.current = pickNext(m.position.clone());
       return;
     }
 
@@ -666,6 +638,9 @@ function BlockShape({ placed, color }: { placed: PlacedPlayer[]; color: string }
 /** 선수 id → 현재 목표 월드 좌표. 토큰이 매 프레임 읽어간다 */
 export type LiveTargets = Map<string, { x: number; z: number }>;
 
+/** 공에서 이 거리(m) 안이면 태클·패스로 즉시 관여할 수 있는 선수로 본다 */
+const INVOLVED_M = 14;
+
 /**
  * 매 프레임 **실제 화면의 공** 위치로 양 팀 배치를 다시 계산한다.
  *
@@ -680,38 +655,89 @@ function BallReactionController({
   press,
   ballWorld,
   targets,
+  nearBall,
   enabled,
   dragId,
+  celebrate,
 }: {
   frame: PitchFrame;
   press: number;
   ballWorld: MutableRefObject<THREE.Vector3>;
   targets: MutableRefObject<LiveTargets>;
+  /** 공 주변에서 태클/패스로 관여 가능한 선수들 (양 팀) */
+  nearBall: MutableRefObject<Set<string>>;
   enabled: boolean;
   dragId: string | null;
+  /** 골 세리머니 중인 팀. 경기 시계는 멈춰도 이 동안 3D는 계속 움직인다 */
+  celebrate: Side | null;
 }) {
-  useFrame(() => {
+  useFrame((state) => {
     const map = targets.current;
     map.clear();
+    nearBall.current.clear();
+
+    /*
+     * 세리머니 — 경기 시계가 멈춰도 화면은 살아있어야 한다.
+     * 득점팀은 코너 쪽으로 달려가 뭉치고, 실점팀은 제자리에 선다.
+     */
+    if (celebrate) {
+      const scoring = celebrate === "home" ? frame.homeBase : frame.awayBase;
+      const other = celebrate === "home" ? frame.awayBase : frame.homeBase;
+      // 카메라가 잡는 지점과 동일해야 한다
+      const spot = celebrationSpot(celebrate);
+      const cx = spot.x;
+      const cy = spot.y;
+      scoring.forEach((p, i) => {
+        if (p.gk) {
+          map.set(p.player.id, toWorld(p.pos));
+          return;
+        }
+        const ang = (i / Math.max(1, scoring.length)) * Math.PI * 2;
+        map.set(
+          p.player.id,
+          toWorld({
+            x: clamp(cx + Math.cos(ang) * 8, 6, 94),
+            y: clamp(cy + Math.sin(ang) * 8, 6, 94),
+          })
+        );
+      });
+      other.forEach((p) => map.set(p.player.id, toWorld(p.pos)));
+      return;
+    }
+
     if (!enabled) return;
 
     const ball = fromWorld(ballWorld.current.x, ballWorld.current.z);
+    // 연속 시간 드리프트 — 분 단위로 계산하면 배속에서 선수가 순간이동한다
+    const t = state.clock.elapsedTime * 0.55;
 
-    for (const [squad, attackingUp, side] of [
-      [frame.homeBase, true, "home"],
-      [frame.awayBase, false, "away"],
+    for (const [squad, attackingUp, side, seedBase] of [
+      [frame.homeBase, true, "home", 0],
+      [frame.awayBase, false, "away", 20],
     ] as const) {
-      const moved = ballReactionPositions(
-        squad.map((p) => ({ id: p.player.id, pos: p.pos, gk: p.gk })),
-        ball,
-        { press, hasBall: frame.possession === side, attackingUp }
-      );
+      const drifted = squad.map((p, i) => {
+        const d = drift(i + seedBase, t, p.gk);
+        return {
+          id: p.player.id,
+          pos: { x: p.pos.x + d.dx, y: p.pos.y - d.dy },
+          gk: p.gk,
+        };
+      });
+
+      const hasBall = frame.possession === side;
+      const moved = ballReactionPositions(drifted, ball, { press, hasBall, attackingUp });
+
       moved.forEach((pos, id) => {
         // 드래그 중인 선수는 커서를 정확히 따라야 하므로 반응에서 제외
         if (id === dragId) return;
-        map.set(id, toWorld(pos));
+        const w = toWorld(pos);
+        map.set(id, w);
+        // 공에서 INVOLVED_M 안이면 태클/패스로 즉시 관여 가능한 거리로 본다
+        const d = Math.hypot(w.x - ballWorld.current.x, w.z - ballWorld.current.z);
+        if (d < INVOLVED_M) nearBall.current.add(id);
       });
     }
+    // 소유 판정은 Ball이 패스 수신자를 직접 기록한다 (거리로 추정하지 않는다)
   });
 
   return null;
@@ -814,28 +840,65 @@ function PassNetworkLayer({
 
 /* ─────────────────────────── 카메라 ─────────────────────────── */
 
-function CameraRig({ camKey, controls }: { camKey: CamKey; controls: MutableRefObject<any> }) {
+/** 이벤트 연출용 카메라 샷. key가 바뀌면 새 샷으로 재무장한다 */
+export interface CineShot {
+  key: string;
+  pos: [number, number, number];
+  target: [number, number, number];
+  /** 클수록 빠르게 붙는다 */
+  speed?: number;
+}
+
+function CameraRig({
+  camKey,
+  controls,
+  shot,
+}: {
+  camKey: CamKey;
+  controls: MutableRefObject<any>;
+  shot: CineShot | null;
+}) {
   const { camera } = useThree();
-  const goal = useRef<{ pos: THREE.Vector3; target: THREE.Vector3 } | null>(null);
+  const goal = useRef<{ pos: THREE.Vector3; target: THREE.Vector3; speed: number } | null>(null);
   const last = useRef<CamKey | null>(null);
+  const lastShot = useRef<string | null>(null);
+
+  // 연출 샷이 프리셋보다 우선한다. 샷이 끝나면 프리셋으로 돌아간다.
+  const shotKey = shot?.key ?? null;
+  if (lastShot.current !== shotKey) {
+    lastShot.current = shotKey;
+    if (shot) {
+      goal.current = {
+        pos: new THREE.Vector3(...shot.pos),
+        target: new THREE.Vector3(...shot.target),
+        speed: shot.speed ?? 1.6,
+      };
+    } else {
+      const p = CAM_PRESETS[camKey];
+      goal.current = { pos: new THREE.Vector3(...p.pos), target: new THREE.Vector3(...p.target), speed: 1 };
+    }
+  }
 
   if (last.current !== camKey) {
     last.current = camKey;
-    const p = CAM_PRESETS[camKey];
-    goal.current = { pos: new THREE.Vector3(...p.pos), target: new THREE.Vector3(...p.target) };
+    if (!shot) {
+      const p = CAM_PRESETS[camKey];
+      goal.current = { pos: new THREE.Vector3(...p.pos), target: new THREE.Vector3(...p.target), speed: 1 };
+    }
   }
 
   useFrame((_, dt) => {
     const g = goal.current;
     if (!g) return;
-    const k = 1 - Math.pow(0.004, Math.min(dt, 0.1));
+    const k = 1 - Math.pow(0.004 / g.speed, Math.min(dt, 0.1));
     camera.position.lerp(g.pos, k);
     const c = controls.current;
     if (c) {
       c.target.lerp(g.target, k);
       c.update();
     }
-    if (camera.position.distanceTo(g.pos) < 0.2) goal.current = null;
+    // 연출 샷은 도착해도 유지한다 (샷이 끝날 때 부모가 null로 바꾼다)
+    if (!shot && camera.position.distanceTo(g.pos) < 0.2) goal.current = null;
   });
 
   return null;
@@ -867,14 +930,63 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
   const setSubTarget = useGame((s) => s.setSubTarget);
 
   const match = getMatch(matchId);
+  // smoothDrift: 흔들림은 렌더러가 연속 시간으로 준다 (분 단위면 배속에서 튄다)
   const frame = useMemo(
-    () => pitchFrame({ match, players, tactics, minute, playing, dragId: drag }),
+    () => pitchFrame({ match, players, tactics, minute, playing, dragId: drag, smoothDrift: true }),
     [match, players, tactics, minute, playing, drag]
   );
 
   // 실제 화면의 공 위치 + 그 공을 기준으로 계산된 선수 목표 (매 프레임 갱신)
   const ballWorld = useRef(new THREE.Vector3());
   const liveTargets = useRef<LiveTargets>(new Map());
+  const carrier = useRef<string | null>(null);
+  const receiver = useRef<string | null>(null);
+  const nearBall = useRef<Set<string>>(new Set());
+
+  /* ── 이벤트 연출: 골 스윕 · 킥오프 플라이인 ── */
+  const [shot, setShot] = useState<CineShot | null>(null);
+  const [flashing, setFlashing] = useState(false);
+  const [celebrate, setCelebrate] = useState<Side | null>(null);
+
+  const goalNow = match?.timeline.find((e) => e.minute === minute && e.type === "goal");
+  const goalKey = goalNow ? `goal-${minute}` : null;
+
+  useEffect(() => {
+    if (!goalNow) return;
+    /*
+     * 세리머니 무리를 정면에서 잡는다.
+     *
+     * 주의 1: 골대만 겨냥하면 선수들은 코너에서 뛰고 화면엔 빈 골대만 남는다.
+     *         반드시 celebrationSpot()과 같은 지점을 바라봐야 한다.
+     * 주의 2: 카메라를 골라인 바깥(|z| > 60)에 두면 관중석 박스 내부로 들어가
+     *         스탠드 뒷면만 보이는 검은 화면이 된다 (스탠드는 z 62~85 구간).
+     */
+    const spot = toWorld(celebrationSpot(goalNow.side));
+    // 중앙선 쪽에서 코너를 바라보게 — 뒤로 골대가 배경에 걸린다
+    const towardMid = spot.z > 0 ? -1 : 1;
+    setShot({
+      key: goalKey!,
+      pos: [spot.x + 15, 7.5, spot.z + towardMid * 21],
+      target: [spot.x, 1.6, spot.z],
+      speed: 2.4,
+    });
+    setFlashing(true);
+    setCelebrate(goalNow.side);
+    const id = setTimeout(() => {
+      setShot(null);
+      setFlashing(false);
+      setCelebrate(null);
+    }, 4600);
+    return () => clearTimeout(id);
+  }, [goalKey, goalNow]);
+
+  // 킥오프 — 높은 곳에서 프리셋 위치로 내려온다
+  useEffect(() => {
+    if (minute !== 1 || !playing) return;
+    setShot({ key: "kickoff", pos: [0, 150, 6], target: [0, 0, 0], speed: 0.55 });
+    const id = setTimeout(() => setShot(null), 2200);
+    return () => clearTimeout(id);
+  }, [minute, playing]);
 
   const homeColor = match?.home.primary ?? "#3987e5";
   const awayColor = match?.away.primary ?? "#d95926";
@@ -920,11 +1032,10 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
       <color attach="background" args={["#070a0e"]} />
       <fog attach="fog" args={["#070a0e", 150, 340]} />
 
-      <hemisphereLight args={["#cfe3ff", "#1a2a20", 0.85]} />
-      <directionalLight position={[40, 70, 30]} intensity={1.5} color="#fff6e0" />
-      <directionalLight position={[-50, 50, -40]} intensity={0.55} color="#9fc4ff" />
+      <PitchLights />
 
       <Stadium />
+      <CrowdFlashes active={flashing} />
       <Turf onDragMove={onDragMove} />
       <Goal sign={1} />
       <Goal sign={-1} />
@@ -948,8 +1059,10 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
         press={tactics.press}
         ballWorld={ballWorld}
         targets={liveTargets}
+        nearBall={nearBall}
         enabled={frame.live}
         dragId={drag}
+        celebrate={celebrate}
       />
 
       {/* 상대 (드래그 불가) */}
@@ -966,6 +1079,10 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
           influenceColor={awayColor}
           booked={bookedById.get(p.player.id) ?? null}
           liveTargets={liveTargets}
+          carrier={carrier}
+          receiver={receiver}
+          nearBall={nearBall}
+          partying={celebrate === "away"}
         />
       ))}
 
@@ -987,15 +1104,27 @@ function Scene({ camKey, overlays, cinematic, drag, setDrag, heatPlayer }: Scene
           onAim={setSubTarget}
           booked={bookedById.get(p.player.id) ?? null}
           liveTargets={liveTargets}
+          carrier={carrier}
+          receiver={receiver}
+          nearBall={nearBall}
+          partying={celebrate === "home"}
         />
       ))}
 
-      <Ball frame={frame} minute={minute} ballWorld={ballWorld} />
+      <Ball
+        frame={frame}
+        minute={minute}
+        ballWorld={ballWorld}
+        celebrating={celebrate !== null}
+        carrier={carrier}
+        receiver={receiver}
+      />
 
-      <CameraRig camKey={camKey} controls={controls} />
+      <CameraRig camKey={camKey} controls={controls} shot={shot} />
       <OrbitControls
         ref={controls}
-        enabled={drag === null && benchDrag === null}
+        // 연출 샷이 도는 동안은 조작을 막아 카메라 워크가 끊기지 않게 한다
+        enabled={drag === null && benchDrag === null && shot === null}
         enablePan={false}
         minDistance={22}
         maxDistance={190}

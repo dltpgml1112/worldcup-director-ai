@@ -20,7 +20,7 @@ import {
 import { t, type Lang } from "@/lib/i18n";
 import type { MatchEvent } from "@/lib/types";
 import LangToggle from "@/components/LangToggle";
-import GoalCelebration from "@/components/GoalCelebration";
+import GoalMoment from "@/components/GoalMoment";
 import Scoreboard from "@/components/Scoreboard";
 import TeamComparison from "@/components/TeamComparison";
 import MomentumBar from "@/components/MomentumBar";
@@ -34,6 +34,8 @@ import DataProvenance from "@/components/DataProvenance";
 import SubstitutionPanel from "@/components/SubstitutionPanel";
 import PostMatchReport from "@/components/PostMatchReport";
 import CardToast from "@/components/CardToast";
+import Tutorial, { TutorialButton } from "@/components/Tutorial";
+import TacticImpact from "@/components/TacticImpact";
 
 export default function MatchPage() {
   const coachName = useGame((s) => s.coachName);
@@ -137,10 +139,11 @@ export default function MatchPage() {
     setCelebration(goal);
     if (playing) pause();
     if (sound) goalRoar();
+    // 3D 카메라 스윕 + 전술 카드를 읽고 누를 시간까지 확보 (Pitch3D 연출 4.6초와 맞춤)
     const id = setTimeout(() => {
       setCelebration(null);
       if (resumeAfterCeleb.current) play();
-    }, 2600);
+    }, 4800);
     return () => clearTimeout(id);
     // playing/sound는 트리거 시점 값만 사용 — minute/match 변화에만 반응
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -189,6 +192,7 @@ export default function MatchPage() {
             {sound ? "🔊" : "🔇"} {t(lang, "play.sound")}
           </button>
           <div className="chip bg-white/5 text-white/60">{formation} · {t(lang, "common.live")}</div>
+          <TutorialButton lang={lang} />
           <LangToggle />
         </div>
       </header>
@@ -217,7 +221,7 @@ export default function MatchPage() {
           <DataProvenance match={match} minute={minute} />
 
           {/* 재생 컨트롤 */}
-          <div className="glass-strong rounded-2xl p-4">
+          <div className="glass-strong rounded-2xl p-4" data-tour="playback">
             <input
               type="range"
               min={0}
@@ -251,8 +255,14 @@ export default function MatchPage() {
         {/* 우: 교체 추천(부하관리) + AI 코치 + 컨트롤 */}
         <div className="space-y-4 xl:col-span-4">
           <SubAdvisor match={match} snap={snap} minute={minute} />
-          <AICoachPanel match={match} snap={snap} tactics={tactics} formation={formation} />
-          <TacticalControls />
+          <div data-tour="coach">
+            <AICoachPanel match={match} snap={snap} tactics={tactics} formation={formation} />
+          </div>
+          <div data-tour="tactics">
+            {/* 조정하면 승리 확률·예상 스코어가 즉시 반응한다는 걸 눈으로 보여준다 */}
+            <TacticImpact />
+            <TacticalControls />
+          </div>
           <EventFeed match={match} minute={minute} />
         </div>
       </div>
@@ -267,12 +277,13 @@ export default function MatchPage() {
         onClose={() => setReportOpen(false)}
       />
 
-      {/* 골 세리머니 (컨페티 + 선수 실루엣 등장) — 2.6초 유지 */}
-      <GoalCelebration
+      {/* 골 모먼트 — 방송 그래픽 + 3D 카메라 연출과 동시에 '다음 전술' 제안 */}
+      <GoalMoment
         goal={celebration ?? undefined}
+        match={match}
+        snap={snap}
         minute={celebFor.current}
         lang={lang}
-        accent={celebration?.side === "away" ? match.away.primary : match.home.primary}
       />
 
       {/* 카드 알림 (방송 오버레이) */}
@@ -280,6 +291,9 @@ export default function MatchPage() {
 
       {/* 교체 알림 (방송 로어서드) */}
       <SubToast lang={lang} />
+
+      {/* 첫 방문 온보딩 — 헤더의 '?' 버튼으로 언제든 다시 볼 수 있다 */}
+      <Tutorial />
     </main>
   );
 }

@@ -39,18 +39,27 @@ export function fromWorld(wx: number, wz: number): PitchPoint {
   };
 }
 
-/** 어느 팀이 공을 가지고 있는지 — 최근 이벤트 우선, 없으면 기세로 판단 */
+/**
+ * 어느 팀이 공을 가지고 있는지.
+ *
+ * 최근 이벤트의 팀을 그대로 쓰면 점유가 거의 바뀌지 않는다 — 타임라인이 한쪽 팀
+ * 이벤트로 치우쳐 있으면 상대가 공을 잡는 장면이 아예 안 나온다.
+ * 그래서 이벤트 직후 2분만 그 팀에 고정하고, 그 외에는 기세로 편향된 교대 파형을 쓴다.
+ * (난수가 아니라 분의 함수라 재현성은 유지된다)
+ */
 export function possessionOf(
   match: MatchData | undefined,
   minute: number,
   momentum: number
 ): Side {
   const last = match ? [...match.timeline].reverse().find((e) => e.minute <= minute) : undefined;
-  if (last && last.type !== "whistle") {
-    // 슈팅/코너 직후엔 공격했던 팀이 계속 몰아친다고 본다
+  if (last && last.type !== "whistle" && minute - last.minute <= 2) {
+    // 슈팅/코너/골 직후엔 그 팀이 계속 몰아친다고 본다
     return last.side;
   }
-  return momentum >= 0 ? "home" : "away";
+  // 약 8분 주기로 교대하되, 기세를 잡은 쪽이 더 오래 점유한다
+  const wave = Math.sin(minute * 0.8) + Math.sin(minute * 0.31 + 2.1) * 0.5;
+  return wave + clamp(momentum / 100, -1, 1) * 0.65 >= 0 ? "home" : "away";
 }
 
 /** 공 목표 위치 — 재생 전/정지 시 정중앙, 재생 중엔 최근 이벤트 기반 위치 */
@@ -281,8 +290,14 @@ export function pitchFrame(params: {
   minute: number;
   playing: boolean;
   dragId?: string | null;
+  /**
+   * 분 단위 드리프트를 생략한다.
+   * 3D 뷰는 매 프레임 연속 시간으로 드리프트를 다시 주기 때문에, 여기서 분 단위로
+   * 한 번 더 흔들면 배속에서 선수가 순간이동하는 것처럼 보인다.
+   */
+  smoothDrift?: boolean;
 }): PitchFrame {
-  const { match, players, tactics, minute, playing, dragId = null } = params;
+  const { match, players, tactics, minute, playing, dragId = null, smoothDrift = false } = params;
   const momentum = match ? snapshotAt(match, minute, tactics).momentum : 0;
   const homeShift = clamp(momentum * 0.06, -7, 7);
   const awayShift = clamp(-momentum * 0.06, -7, 7);
@@ -295,7 +310,7 @@ export function pitchFrame(params: {
     const gk = p.role.toUpperCase() === "GK";
     const b = dragId === p.id ? { x: p.x, y: p.y } : tacticBase(p, tactics);
     if (!live || dragId === p.id) return { player: p, pos: b, gk };
-    const { dx, dy } = drift(i, minute, gk);
+    const { dx, dy } = smoothDrift ? { dx: 0, dy: 0 } : drift(i, minute, gk);
     return {
       player: p,
       pos: { x: clamp(b.x + dx, 3, 97), y: clamp(b.y + homeShift - dy, 3, 96) },
@@ -308,7 +323,7 @@ export function pitchFrame(params: {
     const gk = p.role.toUpperCase() === "GK";
     const base = { x: 100 - p.x, y: 100 - p.y };
     if (!live) return { player: p, pos: base, gk };
-    const { dx, dy } = drift(i + 20, minute, gk);
+    const { dx, dy } = smoothDrift ? { dx: 0, dy: 0 } : drift(i + 20, minute, gk);
     return {
       player: p,
       pos: { x: clamp(base.x + dx, 3, 97), y: clamp(base.y - awayShift - dy, 3, 97) },
