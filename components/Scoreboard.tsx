@@ -14,7 +14,7 @@ export default function Scoreboard({ match, snap }: { match: MatchData; snap: Ma
   return (
     <div className="glass-strong rounded-2xl px-5 py-3 shadow-glow">
       <div className="flex items-center justify-between gap-4">
-        <TeamCell name={nm(match.home)} flag={match.home.flag} color={match.home.primary} align="right" />
+        <TeamCell name={nm(match.home)} flag={match.home.flag} color={match.home.primary} align="right" home={(match.actualHome ?? "home") === "home"} />
         <div className="flex flex-col items-center">
           <div className="flex items-center gap-3 font-display text-4xl font-bold tabular-nums">
             <motion.span key={snap.score[0]} initial={{ scale: 1.6, color: "#42f59b" }} animate={{ scale: 1, color: "#fff" }}>
@@ -33,16 +33,33 @@ export default function Scoreboard({ match, snap }: { match: MatchData; snap: Ma
             </span>
           </div>
         </div>
-        <TeamCell name={nm(match.away)} flag={match.away.flag} color={match.away.primary} align="left" />
+        <TeamCell name={nm(match.away)} flag={match.away.flag} color={match.away.primary} align="left" home={match.actualHome === "away"} />
       </div>
       <div className="mt-1 text-center text-[11px] uppercase tracking-widest text-white/40">
-        {match.year} {t(lang, "score.worldcup")} · {stageLabel(lang, match.stage)} · {match.venue}
+        {match.year} {t(lang, "score.worldcup")} · {stageLabel(lang, match.stage, match.stageKo)} ·{" "}
+        {(lang === "ko" && match.venueKo) || match.venue}
       </div>
     </div>
   );
 }
 
-function TeamCell({ name, flag, color, align }: { name: string; flag: string; color: string; align: "left" | "right" }) {
+/**
+ * `home`은 **실제 경기의** 홈팀 여부다. 엔진이 사용자 팀을 항상 home 슬롯에 넣기 때문에
+ * (lib/types.ts의 actualHome 참고) 슬롯만 보고 홈/원정을 표시하면 거꾸로 나온다.
+ */
+function TeamCell({
+  name,
+  flag,
+  color,
+  align,
+  home,
+}: {
+  name: string;
+  flag: string;
+  color: string;
+  align: "left" | "right";
+  home: boolean;
+}) {
   return (
     <div className={`flex min-w-0 flex-1 items-center gap-2 ${align === "right" ? "flex-row-reverse text-right" : ""}`}>
       <span className="text-2xl">{flag}</span>
@@ -50,6 +67,7 @@ function TeamCell({ name, flag, color, align }: { name: string; flag: string; co
         <div className="truncate font-display text-lg font-bold" style={{ color }}>
           {name}
         </div>
+        <div className="text-[9px] uppercase tracking-widest text-white/35">{home ? "HOME" : "AWAY"}</div>
       </div>
     </div>
   );

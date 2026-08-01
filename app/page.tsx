@@ -15,27 +15,41 @@ const HeroPitch3D = dynamic(() => import("@/components/HeroPitch3D"), {
   loading: () => null,
 });
 import LangToggle from "@/components/LangToggle";
-import { COUNTRIES, YEARS, findMatch } from "@/data/matches";
+import { MATCHES, getMatch } from "@/data/matches";
+import { CAMPAIGN_ROUNDS } from "@/data/wc2026";
+import { REAL_OPENER_ID } from "@/lib/campaign";
 import { useGame } from "@/lib/store";
+import { sourceBadge } from "@/lib/provenance";
 import { t, stageLabel } from "@/lib/i18n";
 
+/**
+ * 홈 = 캠페인 입구.
+ *
+ * 예전에는 나라·상대·연도를 자유 조합하게 했는데, 실제 데이터가 있는 대진은 몇 개뿐이라
+ * 없는 조합을 고르면 조용히 다른 경기가 열렸다. 지금은 실제로 열린 경기만 들어간다.
+ */
 export default function Home() {
   const router = useRouter();
   const setup = useGame((s) => s.setup);
   const lang = useGame((s) => s.lang);
   const [name, setName] = useState("");
-  const [country, setCountry] = useState(COUNTRIES[0].id);
-  const [opponent, setOpponent] = useState(COUNTRIES[1].id);
-  const [year, setYear] = useState(YEARS[0]);
+  const ko = lang === "ko";
 
-  const start = () => {
-    const match = findMatch(country, opponent, year);
-    setup({ coachName: name.trim() || (lang === "ko" ? "감독" : "Coach"), matchId: match?.id ?? "kor-rsa-2026" });
+  const opener = getMatch(REAL_OPENER_ID);
+  const coach = () => name.trim() || (ko ? "감독" : "Coach");
+
+  const startCampaign = () => {
+    setup({ coachName: coach() });
     router.push("/match");
   };
 
-  const match = findMatch(country, opponent, year);
-  const teamLabel = (c: { flag: string; name: string; nameKo: string }) => `${c.flag} ${lang === "ko" ? c.nameKo : c.name}`;
+  const startReplay = (matchId: string) => {
+    setup({ coachName: coach(), matchId });
+    router.push("/match");
+  };
+
+  // 다시보기 = 실측 경기 전부 (남아공전 원본 + 2022·2018 결승)
+  const replays = MATCHES;
 
   return (
     <main className="relative min-h-screen overflow-hidden">
@@ -71,7 +85,9 @@ export default function Home() {
           transition={{ duration: 0.7, delay: 0.15 }}
           className="glass-strong mt-10 w-full max-w-2xl rounded-3xl p-6 sm:p-8"
         >
-          <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-white/50">{t(lang, "home.coachName")}</label>
+          <label className="mb-1 block text-xs font-semibold uppercase tracking-widest text-white/50">
+            {t(lang, "home.coachName")}
+          </label>
           <input
             value={name}
             onChange={(e) => setName(e.target.value)}
@@ -79,31 +95,77 @@ export default function Home() {
             className="mb-5 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-lg outline-none focus:border-neon-grass"
           />
 
-          <Picker label={t(lang, "home.yourCountry")} value={country} onChange={setCountry}
-            options={COUNTRIES.map((c) => ({ id: c.id, label: teamLabel(c) }))} />
+          {/* ── 캠페인 브리핑 ── */}
+          {opener && (
+            <div className="rounded-2xl border border-team-home/40 bg-team-home/10 p-4">
+              <div className="flex items-center justify-between gap-2">
+                <span className="chip bg-white/10 text-white/70">
+                  2026 · {stageLabel(lang, opener.stage, opener.stageKo)}
+                </span>
+                <span className={`chip ${sourceBadge("real").cls}`}>{t(lang, sourceBadge("real").key)}</span>
+              </div>
 
-          <Picker label={t(lang, "home.opponent")} value={opponent} onChange={setOpponent}
-            options={COUNTRIES.filter((c) => c.id !== country).map((c) => ({ id: c.id, label: teamLabel(c) }))} />
+              <div className="mt-3 flex items-center justify-center gap-3">
+                <span className="text-3xl">🇰🇷</span>
+                <span className="metric-num font-display text-2xl font-bold text-white/50">0–1</span>
+                <span className="text-3xl">🇿🇦</span>
+              </div>
 
-          <Picker label={t(lang, "home.year")} value={String(year)} onChange={(v) => setYear(Number(v))}
-            options={YEARS.map((y) => ({ id: String(y), label: `${y}` }))} />
+              <p className="mt-3 text-sm leading-relaxed text-white/70">
+                {ko
+                  ? "승점 3의 한국, 1의 남아공. 비기기만 해도 16강이었다. 점유율 68%에 슈팅 18개를 치고도 유효슈팅은 3개. 63분 한 방에 무너져 조 3위로 탈락했다."
+                  : "Korea on 3 points, South Africa on 1 — a draw was enough. Korea had 68% of the ball and 18 shots, but only three on target. One 63rd-minute break ended it."}
+              </p>
+              <p className="mt-2 text-sm font-semibold text-team-home">
+                {ko
+                  ? "이제 당신이 감독이다. 통과하면 남아공의 자리를 그대로 이어받아 결승까지 간다."
+                  : "Now you're the manager. Go through, and you inherit South Africa's bracket slot all the way to the final."}
+              </p>
 
-          {match && (
-            <div className="mt-2 flex flex-wrap items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-4 py-2 text-sm text-white/60">
-              <span>{t(lang, "home.loading")}:</span>
-              <span className="font-semibold text-white">
-                {lang === "ko" ? match.home.nameKo : match.home.name} {t(lang, "common.vs")} {lang === "ko" ? match.away.nameKo : match.away.name}
-              </span>
-              <span>· {match.year} {stageLabel(lang, match.stage)}</span>
-              <span className={`chip ${match.dataSource === "scenario" ? "bg-neon-gold/20 text-neon-gold" : "bg-neon-grass/15 text-neon-grass"}`}>
-                {match.dataSource === "scenario" ? t(lang, "common.scenario") : t(lang, "common.real")}
-              </span>
+              {/* 이길 경우 만나게 될 실제 상대들 */}
+              <div className="mt-3 flex flex-wrap items-center gap-1.5">
+                <span className="text-[10px] uppercase tracking-wider text-white/40">
+                  {ko ? "그 앞에 있는 팀" : "The road ahead"}
+                </span>
+                {CAMPAIGN_ROUNDS.map((r) => (
+                  <span key={r.id} className="chip bg-white/5 text-white/60">
+                    {r.opponent.flag} {ko ? r.stageKo : r.stage}
+                  </span>
+                ))}
+              </div>
+
+              <motion.button whileTap={{ scale: 0.98 }} onClick={startCampaign} className="btn-primary mt-4 w-full !py-3">
+                <span className="relative z-10">
+                  {ko ? "내 월드컵을 시작한다" : "Start my World Cup"}
+                </span>
+              </motion.button>
             </div>
           )}
 
-          <motion.button whileTap={{ scale: 0.98 }} onClick={start} className="btn-primary mt-6 w-full !py-3">
-            <span className="relative z-10">{t(lang, "home.start")}</span>
-          </motion.button>
+          {/* ── 실측 경기 다시보기 ── */}
+          <div className="mt-5">
+            <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/40">
+              {ko ? "실제 경기 다시보기" : "Replay a real match"}
+            </div>
+            <div className="flex flex-wrap gap-2">
+              {replays.map((m) => (
+                <button
+                  key={m.id}
+                  onClick={() => startReplay(m.id)}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
+                >
+                  <span>{m.home.flag}</span>
+                  <span className="metric-num font-semibold">
+                    {m.finalScore[0]}–{m.finalScore[1]}
+                  </span>
+                  <span>{m.away.flag}</span>
+                  <span className="text-white/40">
+                    {m.year} {stageLabel(lang, m.stage, m.stageKo)}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </motion.div>
 
         <div className="mt-8 flex flex-wrap justify-center gap-2 text-xs text-white/40">
@@ -113,38 +175,5 @@ export default function Home() {
         </div>
       </div>
     </main>
-  );
-}
-
-function Picker({
-  label,
-  value,
-  onChange,
-  options,
-}: {
-  label: string;
-  value: string;
-  onChange: (v: string) => void;
-  options: { id: string; label: string }[];
-}) {
-  return (
-    <div className="mb-4">
-      <div className="mb-1.5 text-xs font-semibold uppercase tracking-widest text-white/50">{label}</div>
-      <div className="flex flex-wrap gap-2">
-        {options.map((o) => (
-          <button
-            key={o.id}
-            onClick={() => onChange(o.id)}
-            className={`rounded-xl border px-4 py-2 font-semibold transition ${
-              value === o.id
-                ? "border-neon-grass bg-neon-grass/15 text-neon-grass shadow-glow"
-                : "border-white/10 bg-white/5 text-white/70 hover:bg-white/10"
-            }`}
-          >
-            {o.label}
-          </button>
-        ))}
-      </div>
-    </div>
   );
 }

@@ -1,7 +1,7 @@
 "use client";
 
 import type { MatchData } from "@/lib/types";
-import { sceneProvenance } from "@/lib/provenance";
+import { sceneProvenance, sourceBadge } from "@/lib/provenance";
 import { useGame } from "@/lib/store";
 import { t } from "@/lib/i18n";
 
@@ -23,8 +23,8 @@ export default function DataProvenance({ match, minute }: { match: MatchData; mi
         </span>
         <span className="flex items-center gap-1.5">
           <span className="chip bg-surface-line text-ink-secondary">{p.sceneLabel}</span>
-          <span className={`chip ${p.source === "scenario" ? "bg-status-warning/15 text-status-warning" : "bg-status-good/15 text-status-good"}`}>
-            {p.source === "scenario" ? t(lang, "common.scenario") : t(lang, "common.real")}
+          <span className={`chip ${sourceBadge(p.source).cls}`}>
+            {t(lang, sourceBadge(p.source).key)}
           </span>
         </span>
       </div>

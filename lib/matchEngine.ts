@@ -33,13 +33,25 @@ function clamp(v: number, lo = 0, hi = 100) {
 /**
  * 택티컬 슬라이더/토글을 팀 강도 계수로 변환.
  * 공격↑ = 득점기대↑·실점위험↑, 라인↑ = 압박이득·뒷공간위험, 등.
+ *
+ * **모든 계수는 DEFAULT_TACTICS에서 중립(배율 1.0 / 가산 0)이 되도록 정규화한다.**
+ * 이전에는 기본값에서 이미 attackBoost 1.195 · defenseRisk 1.235 · pressGain 0.2였다.
+ * 즉 사용자가 아무것도 건드리지 않아도 실제 경기 대비 기대득점이 20% 부풀고 상대 실점
+ * 위험이 24% 올라간 상태로 시작했다. 기준선이 틀리면 "내 조정이 만든 차이"를 읽을 수 없다.
  */
+const ATTACK_AT_DEFAULT = 0.7 + (DEFAULT_TACTICS.attack / 100) * 0.9;
+const DEFENSE_AT_DEFAULT =
+  0.6 + (DEFAULT_TACTICS.attack / 100) * 0.7 + (DEFAULT_TACTICS.line / 100) * 0.5;
+
 export function tacticalModifiers(t: Tactics) {
-  const attackBoost = 0.7 + (t.attack / 100) * 0.9; // 0.7 ~ 1.6
-  const defenseRisk = 0.6 + (t.attack / 100) * 0.7 + (t.line / 100) * 0.5;
-  const pressGain = (t.press / 100) * 0.4 + (t.highPress ? 0.15 : 0);
-  const pressFatigue = (t.press / 100) * 0.25 + (t.highPress ? 0.12 : 0);
-  const tempoPoss = (t.tempo / 100 - 0.5) * 24; // 점유율 편향
+  // 곱셈 계수 — 기본 전술에서 정확히 1.0
+  const attackBoost = (0.7 + (t.attack / 100) * 0.9) / ATTACK_AT_DEFAULT;
+  const defenseRisk =
+    (0.6 + (t.attack / 100) * 0.7 + (t.line / 100) * 0.5) / DEFENSE_AT_DEFAULT;
+  // 가산 항 — 기본값(press 50, tempo 55, 토글 off)에서 0
+  const pressGain = ((t.press - 50) / 100) * 0.4 + (t.highPress ? 0.15 : 0);
+  const pressFatigue = ((t.press - 50) / 100) * 0.25 + (t.highPress ? 0.12 : 0);
+  const tempoPoss = ((t.tempo - DEFAULT_TACTICS.tempo) / 100) * 24; // 점유율 편향
   const counterEdge = t.counter ? 0.18 : 0;
   const trapRisk = t.offsideTrap ? 0.14 : 0;
   return { attackBoost, defenseRisk, pressGain, pressFatigue, tempoPoss, counterEdge, trapRisk };
@@ -153,42 +165,97 @@ export function winProbCurve(match: MatchData, tactics: Tactics): { minute: numb
   return pts;
 }
 
+/* ───────────────────────── 포아송 스코어라인 ───────────────────────── */
+
+/** 월드컵 한 경기의 팀 기대득점 현실 범위. 이 밖은 경기가 아니라 버그다. */
+const LAMBDA_MIN = 0.25;
+const LAMBDA_MAX = 3.0;
+/** 스코어라인 행렬 크기 — 한 팀 7골이면 사실상 확률 0 */
+const MAX_GOALS = 7;
+
+function poissonPmf(lambda: number, k: number): number {
+  let logP = -lambda + k * Math.log(lambda);
+  for (let i = 2; i <= k; i++) logP -= Math.log(i);
+  return Math.exp(logP);
+}
+
+/** 슛이 아닌 이벤트는 기대득점에 들어가지 않는다 (코너·경고·휘슬·기회) */
+function expectedGoals(match: MatchData, side: Side): number {
+  return match.timeline
+    .filter((e) => e.side === side && (e.type === "goal" || e.type === "shot"))
+    .reduce((a, e) => a + (e.xg ?? (e.type === "goal" ? 0.3 : 0.05)), 0);
+}
+
+export interface AlternateResult {
+  /** 가장 확률이 높은 스코어라인 (최빈값) */
+  score: [number, number];
+  /** 그 스코어라인이 나올 확률 % */
+  scorelineProb: number;
+  /** 기대득점 λ — 소수점이 있는 '평균적으로 몇 골' */
+  xg: [number, number];
+  homeWinProb: number;
+  drawProb: number;
+  awayWinProb: number;
+}
+
 /**
- * ALTERNATE HISTORY — 택틱을 반영한 포아송 재시뮬레이션.
- * 실제 xG 총합을 기대득점으로 삼고 택틱 계수로 조정 → 대체 스코어라인.
+ * ALTERNATE HISTORY — 택틱을 반영한 기대득점 → 스코어라인 분포.
+ *
+ * 이전 구현은 포아송을 **한 번 뽑아서** 그 표본을 그대로 보여줬다. λ가 1.2여도 한 번
+ * 뽑으면 4골이 나오고(확률 약 3%), 슬라이더를 조금만 움직여도 스코어가 널을 뛰었다.
+ * 표본 하나는 예측이 아니다.
+ *
+ * 여기서는 양 팀 득점 분포의 **결합행렬을 전부 계산**해서
+ *  - 가장 확률이 높은 스코어라인 (최빈값)
+ *  - 승/무/패 확률 (행렬을 영역별로 합산 — 로지스틱 근사 아님)
+ * 를 낸다. 결정론적이라 같은 전술이면 항상 같은 답이고, 근거를 그대로 설명할 수 있다.
  */
-export function simulateAlternate(match: MatchData, tactics: Tactics, seed = 42) {
+export function simulateAlternate(match: MatchData, tactics: Tactics): AlternateResult {
   const mod = tacticalModifiers(tactics);
-  const totalHx = match.timeline.filter((e) => e.side === "home").reduce((a, e) => a + (e.xg ?? 0.05), 0);
-  const totalAx = match.timeline.filter((e) => e.side === "away").reduce((a, e) => a + (e.xg ?? 0.05), 0);
 
-  const lambdaHome = totalHx * mod.attackBoost * (1 + mod.counterEdge);
-  const lambdaAway = totalAx * mod.defenseRisk * (1 - mod.pressGain * 0.4 + mod.trapRisk);
+  const lambdaHome = clamp(
+    expectedGoals(match, "home") * mod.attackBoost * (1 + mod.counterEdge),
+    LAMBDA_MIN,
+    LAMBDA_MAX
+  );
+  const lambdaAway = clamp(
+    expectedGoals(match, "away") * mod.defenseRisk * (1 - mod.pressGain * 0.4 + mod.trapRisk),
+    LAMBDA_MIN,
+    LAMBDA_MAX
+  );
 
-  // 시드 기반 포아송 (재현 가능)
-  let s = seed;
-  const rnd = () => {
-    s = (s * 1103515245 + 12345) & 0x7fffffff;
-    return s / 0x7fffffff;
-  };
-  const poisson = (lambda: number) => {
-    const L = Math.exp(-lambda);
-    let k = 0,
-      p = 1;
-    do {
-      k++;
-      p *= rnd();
-    } while (p > L);
-    return k - 1;
-  };
+  const ph = Array.from({ length: MAX_GOALS + 1 }, (_, k) => poissonPmf(lambdaHome, k));
+  const pa = Array.from({ length: MAX_GOALS + 1 }, (_, k) => poissonPmf(lambdaAway, k));
 
-  const hg = poisson(lambdaHome);
-  const ag = poisson(lambdaAway);
-  const winProb = 1 / (1 + Math.exp(-(lambdaHome - lambdaAway) * 1.1));
+  let best: [number, number] = [0, 0];
+  let bestP = -1;
+  let win = 0,
+    draw = 0,
+    loss = 0;
+
+  for (let h = 0; h <= MAX_GOALS; h++) {
+    for (let a = 0; a <= MAX_GOALS; a++) {
+      const p = ph[h] * pa[a];
+      if (p > bestP) {
+        bestP = p;
+        best = [h, a];
+      }
+      if (h > a) win += p;
+      else if (h === a) draw += p;
+      else loss += p;
+    }
+  }
+
+  // 행렬이 MAX_GOALS에서 잘리므로 남은 꼬리를 정규화로 흡수한다
+  const total = win + draw + loss || 1;
+
   return {
-    score: [hg, ag] as [number, number],
-    xg: [Number(lambdaHome.toFixed(2)), Number(lambdaAway.toFixed(2))] as [number, number],
-    homeWinProb: Math.round(winProb * 100),
+    score: best,
+    scorelineProb: Math.round((bestP / total) * 100),
+    xg: [Number(lambdaHome.toFixed(2)), Number(lambdaAway.toFixed(2))],
+    homeWinProb: Math.round((win / total) * 100),
+    drawProb: Math.round((draw / total) * 100),
+    awayWinProb: Math.round((loss / total) * 100),
   };
 }
 

@@ -5,7 +5,7 @@ import Link from "next/link";
 import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
-import { snapshotAt, simulateAlternate } from "@/lib/matchEngine";
+import { snapshotAt, simulateAlternate, type AlternateResult } from "@/lib/matchEngine";
 import {
   startCrowd,
   stopCrowd,
@@ -39,6 +39,8 @@ import PlayerDetailCard from "@/components/PlayerDetailCard";
 import MatchProgress from "@/components/MatchProgress";
 import TacticImpact from "@/components/TacticImpact";
 import TacticPresets from "@/components/TacticPresets";
+import CampaignBracket from "@/components/CampaignBracket";
+import RoundBriefing from "@/components/RoundBriefing";
 
 export default function MatchPage() {
   const coachName = useGame((s) => s.coachName);
@@ -52,6 +54,8 @@ export default function MatchPage() {
   const setSound = useGame((s) => s.setSound);
   const lang = useGame((s) => s.lang);
   const { togglePlay, setSpeed, tick, resetClock, setMinute, play, pause } = useGame();
+  const finishRound = useGame((s) => s.finishRound);
+  const replayRound = useGame((s) => s.replayRound);
 
   const [reportOpen, setReportOpen] = useState(false);
   const reportShownFor = useRef<number>(-1);
@@ -67,6 +71,8 @@ export default function MatchPage() {
   const match = getMatch(matchId);
   const end = match?.timeline[match.timeline.length - 1]?.minute ?? 90;
   const isFT = minute >= end;
+  // 캠페인 라운드인지, 결승 다시보기 같은 단독 재생인지
+  const isCampaign = matchId.startsWith("campaign-");
 
   useEffect(() => {
     if (!playing) return;
@@ -200,6 +206,9 @@ export default function MatchPage() {
 
   const snap = snapshotAt(match, minute, tactics);
   const alt = simulateAlternate(match, tactics);
+  const won = match.penalties
+    ? match.penalties[0] > match.penalties[1]
+    : match.finalScore[0] > match.finalScore[1];
 
   return (
     <main className="min-h-screen px-4 py-4 lg:px-6">
@@ -234,14 +243,14 @@ export default function MatchPage() {
         {/* 좌: 방송 그래픽 */}
         <div className="space-y-4 xl:col-span-4">
           <Scoreboard match={match} snap={snap} />
+          {isCampaign && <CampaignBracket />}
           <WinProbChart match={match} tactics={tactics} minute={minute} />
           <MomentumBar momentum={snap.momentum} homeCode={match.home.code} awayCode={match.away.code} />
           <TeamComparison match={match} snap={snap} minute={minute} />
           <AlternateHistory
             lang={lang}
             realScore={match.finalScore}
-            altScore={alt.score}
-            altWin={alt.homeWinProb}
+            alt={alt}
             narrative={lang === "ko" && match.realNarrativeKo ? match.realNarrativeKo : match.realNarrative}
           />
         </div>
@@ -310,6 +319,36 @@ export default function MatchPage() {
         open={reportOpen}
         onClose={() => setReportOpen(false)}
       />
+
+      {/*
+        캠페인 진행 바 — 경기가 끝나면 진출/재도전을 여기서 정한다.
+        리포트를 닫아야 보이게 해서 두 개가 겹치지 않도록 한다.
+      */}
+      {isCampaign && isFT && !reportOpen && (
+        <div className="fixed inset-x-0 bottom-0 z-[60] flex justify-center p-4">
+          <div className="glass-strong flex flex-wrap items-center justify-center gap-3 rounded-2xl px-5 py-3">
+            <span className="text-sm font-semibold text-ink-secondary">
+              {won
+                ? lang === "ko" ? "이겼다. 다음 라운드로." : "You won. Next round."
+                : lang === "ko" ? "여기서 끝낼 수는 없다." : "You can't leave it here."}
+            </span>
+            <button onClick={finishRound} className="btn-primary !py-2 !text-sm">
+              <span className="relative z-10">
+                {won ? (lang === "ko" ? "다음 라운드" : "Next round") : (lang === "ko" ? "결과 확정" : "Accept result")}
+              </span>
+            </button>
+            <button
+              onClick={replayRound}
+              className="chip bg-white/10 px-4 py-2 text-white/80 hover:bg-white/20"
+            >
+              {lang === "ko" ? "전술 바꿔 다시" : "Retry with new tactics"}
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* 라운드 브리핑 · 캠페인 결말 */}
+      <RoundBriefing />
 
       {/* 골 모먼트 — 방송 그래픽 + 3D 카메라 연출과 동시에 '다음 전술' 제안 */}
       <GoalMoment
@@ -382,21 +421,17 @@ function SubToast({ lang }: { lang: Lang }) {
 function AlternateHistory({
   lang,
   realScore,
-  altScore,
-  altWin,
+  alt,
   narrative,
 }: {
   lang: Lang;
   realScore: [number, number];
-  altScore: [number, number];
-  altWin: number;
+  alt: AlternateResult;
   narrative: string;
 }) {
+  const altScore = alt.score;
   const changed = realScore[0] !== altScore[0] || realScore[1] !== altScore[1];
-  const winLine =
-    lang === "ko"
-      ? `당신의 전술은 `
-      : `Your tactics project a `;
+  const winLine = lang === "ko" ? `당신의 전술은 ` : `Your tactics project a `;
   return (
     <div className="panel rounded-lg p-4">
       <div className="mb-3 flex items-center gap-2">
@@ -411,12 +446,31 @@ function AlternateHistory({
         <div className="rounded-md border border-team-home/40 bg-team-home/10 p-3 text-center">
           <div className="text-[10px] uppercase tracking-wide text-team-home">{t(lang, "alt.your")}</div>
           <div className="metric-num font-display text-3xl font-bold text-team-home">{altScore[0]}–{altScore[1]}</div>
+          {/* 표본 하나가 아니라 '가장 확률이 높은 스코어'임을 밝힌다 */}
+          <div className="metric-num text-[10px] text-ink-muted">
+            {lang === "ko" ? "최빈 스코어" : "most likely"} · {alt.scorelineProb}%
+          </div>
         </div>
       </div>
-      <div className="mt-3 rounded-md bg-surface-panel px-3 py-2 text-center text-xs leading-relaxed text-ink-secondary">
+
+      {/* 승/무/패 — 포아송 결합행렬을 영역별로 합산한 값 */}
+      <div className="mt-3 flex h-1.5 overflow-hidden rounded-full bg-surface-panel">
+        <div style={{ width: `${alt.homeWinProb}%` }} className="bg-status-good" />
+        <div style={{ width: `${alt.drawProb}%` }} className="bg-ink-muted/50" />
+        <div style={{ width: `${alt.awayWinProb}%` }} className="bg-status-critical" />
+      </div>
+      <div className="metric-num mt-1 flex justify-between text-[10px] text-ink-muted">
+        <span className="text-status-good">{lang === "ko" ? "승" : "W"} {alt.homeWinProb}%</span>
+        <span>{lang === "ko" ? "무" : "D"} {alt.drawProb}%</span>
+        <span className="text-status-critical">{lang === "ko" ? "패" : "L"} {alt.awayWinProb}%</span>
+      </div>
+
+      <div className="mt-2 rounded-md bg-surface-panel px-3 py-2 text-center text-xs leading-relaxed text-ink-secondary">
         {winLine}
-        <span className="metric-num rounded bg-team-home/15 px-1.5 py-0.5 font-bold text-team-home">{altWin}%</span>
-        {lang === "ko" ? " 승리 확률" : " win probability"}
+        <span className="metric-num rounded bg-team-home/15 px-1.5 py-0.5 font-bold text-team-home">
+          {alt.xg[0].toFixed(2)}–{alt.xg[1].toFixed(2)}
+        </span>
+        {lang === "ko" ? " 기대득점" : " expected goals"}
         {changed ? (
           <span className="ml-1 font-semibold text-status-good">· {t(lang, "alt.rewritten")}</span>
         ) : (

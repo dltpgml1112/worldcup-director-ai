@@ -25,6 +25,7 @@ const KO: Dict = {
   "common.live": "실시간",
   "common.scenario": "시나리오 데이터",
   "common.real": "실측 데이터",
+  "common.simulated": "시뮬레이션",
   "common.vs": "vs",
   // 스코어보드
   "score.ft": "종료",
@@ -243,6 +244,7 @@ const EN: Dict = {
   "common.live": "Live",
   "common.scenario": "Scenario data",
   "common.real": "Real data",
+  "common.simulated": "Simulated",
   "common.vs": "vs",
   "score.ft": "FT",
   "score.et": "ET",
@@ -445,8 +447,13 @@ export function t(lang: Lang, key: string): string {
   return DICTS[lang]?.[key] ?? DICTS.en[key] ?? key;
 }
 
-export function stageLabel(lang: Lang, stage: string): string {
-  return lang === "ko" ? STAGE_KO[stage] ?? stage : stage;
+/**
+ * 라운드 표기. 경기 데이터가 자기 한국어 표기(`stageKo`)를 들고 있으면 그것을 우선한다 —
+ * "Group A · Matchday 3"처럼 대회마다 다른 표기는 공용 사전으로 감당이 안 된다.
+ */
+export function stageLabel(lang: Lang, stage: string, stageKo?: string): string {
+  if (lang === "ko") return stageKo ?? STAGE_KO[stage] ?? stage;
+  return stage;
 }
 
 /** 선수/팀 표시명 — 한국어일 때 nameKo 우선 */
