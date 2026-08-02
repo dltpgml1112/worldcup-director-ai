@@ -33,9 +33,11 @@ for (let step = 0; step < 8; step++) {
   const st = s();
   if (st.champion || st.eliminated) break;
 
-  const match = getMatch(st.matchId);
+  // 킥오프해야 경기가 생성된다 (그 전에는 결과가 없는 게 정상)
+  s().kickoff();
+  const match = getMatch(s().matchId);
   if (!match) {
-    console.log("경기를 찾지 못했다:", st.matchId);
+    console.log("경기를 찾지 못했다:", s().matchId);
     break;
   }
 
@@ -60,6 +62,7 @@ for (let step = 0; step < 8; step++) {
     s().setTactic("attack", Math.min(100, t.attack + 2));
     s().setTactic("press", Math.min(100, t.press + 1));
     s().replayRound();
+    s().kickoff();
     tries++;
   }
   if (tries > 0) {
@@ -82,17 +85,61 @@ console.log("\n=== 탈락 경로 (첫 경기에서 지면) ===");
 s().resetCampaign();
 s().setup({ coachName: "테스트" });
 // 지는 시드가 나올 때까지 전술을 흔든다
+s().kickoff();
 for (let i = 0; i < 60; i++) {
   const m = getMatch(s().matchId)!;
   if (m.finalScore[0] < m.finalScore[1]) break;
   s().setTactic("attack", Math.max(0, s().tactics.attack - 1));
   s().setTactic("line", Math.max(0, s().tactics.line - 1));
   s().replayRound();
+  s().kickoff();
 }
 const opener = getMatch(s().matchId)!;
 console.log(`A조 3차전 결과 ${opener.finalScore[0]}-${opener.finalScore[1]}`);
 s().finishRound();
 console.log(`탈락 처리: ${s().eliminated ? "OK" : "안 됨 (다음 라운드로 넘어감)"}`);
+
+console.log("\n=== 킥오프 전 결과 노출 / 전술 반응 ===");
+{
+  const { projectMatch } = await import("../lib/simulateMatch");
+  s().resetCampaign();
+  s().setup({ coachName: "테스트" });
+  s().finishRound(); // 어떤 결과든 다음 라운드로 (통과 못하면 아래에서 걸러짐)
+
+  const st = s();
+  const m = getMatch(st.matchId)!;
+  const round = CAMPAIGN_ROUNDS.find((r) => r.id === st.roundId)!;
+
+  console.log(`  현재 라운드: ${round.stageKo} vs ${round.opponent.nameKo}`);
+  console.log(
+    `  킥오프 전 타임라인 ${m.timeline.length}개, finalScore ${m.finalScore.join("-")}, pending=${m.pending}` +
+      (m.pending && m.timeline.length === 0 ? "  ✓ 결과 미확정" : "  ❌ 경기 전에 결과가 정해져 있다")
+  );
+
+  // 전술을 바꾸면 예상이 실제로 움직이는가
+  const at = (attack: number) => {
+    s().setTactic("attack", attack);
+    const t = s().tactics;
+    const p = projectMatch(s().players, round.opponentXI, t, round.opponentTactics);
+    return `${p.score.join("-")} (승 ${p.homeWinProb}% · xG ${p.xg.join("-")})`;
+  };
+  const low = at(10);
+  const mid = at(55);
+  const high = at(100);
+  console.log(`  공격 10  → ${low}`);
+  console.log(`  공격 55  → ${mid}`);
+  console.log(`  공격 100 → ${high}`);
+  console.log(`  ${low !== high ? "✓ 전술이 예상을 바꾼다" : "❌ 전술을 바꿔도 그대로다"}`);
+
+  // 킥오프하면 그 시점 전술로 경기가 만들어지는가
+  s().setTactic("attack", 55);
+  s().play();
+  const played = getMatch(s().matchId)!;
+  console.log(
+    `  킥오프 후: 타임라인 ${played.timeline.length}개, 결과 ${played.finalScore.join("-")}, pending=${played.pending ?? false}` +
+      (!played.pending && played.timeline.length > 0 ? "  ✓" : "  ❌")
+  );
+}
 
 console.log("\n=== 브리핑/튜토리얼 순서 ===");
 {

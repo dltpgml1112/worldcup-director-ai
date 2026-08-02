@@ -92,6 +92,8 @@ interface GameState {
   replayRound: () => void;
   /** 캠페인을 처음부터 */
   resetCampaign: () => void;
+  /** 킥오프 — 지금 전술·라인업으로 경기를 생성한다 (이미 생성됐으면 무시) */
+  kickoff: () => void;
   /** 저장된 캠페인 이어하기. 저장본이 없으면 false */
   resumeCampaign: () => boolean;
   /**
@@ -223,6 +225,10 @@ function loadRound(roundId: string, tactics: Tactics, xiOverride?: Player[]) {
   const baseBench = KOR_2026_BENCH;
 
   const round = CAMPAIGN_ROUNDS.find((r) => r.id === roundId) ?? CAMPAIGN_ROUNDS[0];
+  /*
+   * 껍데기만 만든다 — 실제 전개는 킥오프할 때 그 시점의 전술·라인업으로 생성한다.
+   * 여기서 만들어버리면 감독이 전술을 짜기도 전에 결과가 확정되고, 화면에 그대로 뜬다.
+   */
   const match = buildRoundMatch({
     round,
     korea: KOREA,
@@ -230,6 +236,7 @@ function loadRound(roundId: string, tactics: Tactics, xiOverride?: Player[]) {
     koreaBench: baseBench,
     koreaShape: KOREA_SHAPE,
     tactics,
+    pending: true,
   });
   registerMatch(match);
   const matchId = match.id;
@@ -299,6 +306,8 @@ export const useGame = create<GameState>((set, get) => ({
       const round = CAMPAIGN_ROUNDS.find((r) => r.id === s.roundId);
       // 캠페인이 아닌 단독 재생이면 아무 일도 하지 않는다
       if (!match || !round) return {} as Partial<GameState>;
+      // 킥오프도 안 한 경기를 0-0으로 확정해 버리면 안 된다
+      if (match.pending) return {} as Partial<GameState>;
       // 이미 기록한 라운드면 중복 기록하지 않는다
       if (s.campaignResults.some((r) => r.roundId === round.id)) return {} as Partial<GameState>;
 
@@ -339,6 +348,30 @@ export const useGame = create<GameState>((set, get) => ({
       formation: "343",
     }));
     clearCampaign();
+  },
+
+  /**
+   * 킥오프 — 이 순간의 전술·라인업으로 경기를 생성한다.
+   * 이미 생성됐으면 아무 일도 하지 않는다 (재생/스크럽마다 다시 만들면 안 된다).
+   */
+  kickoff: () => {
+    const s = get();
+    const round = CAMPAIGN_ROUNDS.find((r) => r.id === s.roundId);
+    const current = getMatch(s.matchId);
+    if (!round || !current?.pending) return;
+
+    const rev = s.matchRevision + 1;
+    const match = buildRoundMatch({
+      round,
+      korea: KOREA,
+      koreaXI: s.players,
+      koreaBench: s.bench,
+      koreaShape: KOREA_SHAPE,
+      tactics: s.tactics,
+      revision: rev,
+    });
+    registerMatch(match);
+    set({ matchId: match.id, matchRevision: rev });
   },
 
   applyTacticsNow: () => {
@@ -505,11 +538,21 @@ export const useGame = create<GameState>((set, get) => ({
 
   setSound: (sound) => set({ sound }),
 
-  play: () => set({ playing: true }),
+  // 재생·스크럽 어느 쪽으로 시작하든 그 순간의 전술로 경기를 만든다
+  play: () => {
+    get().kickoff();
+    set({ playing: true });
+  },
   pause: () => set({ playing: false }),
-  togglePlay: () => set((s) => ({ playing: !s.playing })),
+  togglePlay: () => {
+    if (!get().playing) get().kickoff();
+    set((s) => ({ playing: !s.playing }));
+  },
   setSpeed: (speed) => set({ speed }),
-  setMinute: (minute) => set({ minute }),
+  setMinute: (minute) => {
+    if (minute > 0) get().kickoff();
+    set({ minute });
+  },
 
   tick: () => {
     const { minute, matchId } = get();

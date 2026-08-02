@@ -223,7 +223,16 @@ export function simulateAlternate(match: MatchData, tactics: Tactics): Alternate
     LAMBDA_MIN,
     LAMBDA_MAX
   );
+  return poissonOutcome(lambdaHome, lambdaAway);
+}
 
+/**
+ * 양 팀 기대득점 → 스코어라인 분포.
+ *
+ * 킥오프 전 예상(전력·전술 기반)과 경기 중 대체역사(실제 xG 기반)가 **같은 계산**을
+ * 쓰도록 분리했다. 두 화면이 다른 방식으로 확률을 내면 숫자가 어긋난다.
+ */
+export function poissonOutcome(lambdaHome: number, lambdaAway: number): AlternateResult {
   const ph = Array.from({ length: MAX_GOALS + 1 }, (_, k) => poissonPmf(lambdaHome, k));
   const pa = Array.from({ length: MAX_GOALS + 1 }, (_, k) => poissonPmf(lambdaAway, k));
 

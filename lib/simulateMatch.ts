@@ -1,5 +1,5 @@
 import type { MatchEvent, Player, Side, Tactics } from "./types";
-import { tacticalModifiers } from "./matchEngine";
+import { tacticalModifiers, poissonOutcome, type AlternateResult } from "./matchEngine";
 
 /**
  * 경기 타임라인 생성기 — 캠페인의 척추.
@@ -113,6 +113,25 @@ export function expectedGoalsFor(attackXI: Player[], defendXI: Player[], attacki
     (1 - d.pressGain * 0.35 + d.trapRisk);
 
   return clamp(lambda, LAMBDA_MIN, LAMBDA_MAX);
+}
+
+/**
+ * 킥오프 전 예상 — 아직 경기가 만들어지지 않았을 때 쓴다.
+ *
+ * 전력과 전술만으로 기대득점을 내고 그 분포에서 최빈 스코어·승무패를 뽑는다.
+ * 감독이 슬라이더를 움직이면 여기가 즉시 반응해야 한다 — 킥오프 전에 조작이
+ * 결과에 어떻게 작용하는지 볼 수 있어야 전술을 짜는 의미가 있다.
+ */
+export function projectMatch(
+  homeXI: Player[],
+  awayXI: Player[],
+  homeTactics: Tactics,
+  awayTactics: Tactics
+): AlternateResult {
+  return poissonOutcome(
+    expectedGoalsFor(homeXI, awayXI, homeTactics, awayTactics),
+    expectedGoalsFor(awayXI, homeXI, awayTactics, homeTactics)
+  );
 }
 
 function poissonDraw(lambda: number, rnd: () => number): number {

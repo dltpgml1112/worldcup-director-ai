@@ -8,6 +8,7 @@ import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate, type AlternateResult } from "@/lib/matchEngine";
 import { orientFixture, orientedScore } from "@/lib/fixture";
 import type { MatchOutcome } from "@/lib/postMatch";
+import { projectMatch } from "@/lib/simulateMatch";
 import {
   startCrowd,
   stopCrowd,
@@ -61,6 +62,8 @@ export default function MatchPage() {
   const replayRound = useGame((s) => s.replayRound);
   const applyTacticsNow = useGame((s) => s.applyTacticsNow);
   const roundId = useGame((s) => s.roundId);
+  // 킥오프 전 예상은 지금 배치된 선발로 계산한다 — 라인업 변경도 예상에 반영돼야 한다
+  const players = useGame((s) => s.players);
 
   const [reportOpen, setReportOpen] = useState(false);
   const reportShownFor = useRef<number>(-1);
@@ -221,16 +224,33 @@ export default function MatchPage() {
    * 예전에는 각자 match.finalScore / alt.score 를 섞어 써서, 2-1로 이겼는데 리포트에는
    * "실제 2-1 / 나의 결과 1-1 / 등급 D"가 떴다.
    */
+  /*
+   * 킥오프 전에는 경기가 아직 만들어지지 않았다(pending). 이때는 전력·전술로 계산한
+   * **예상**을 보여준다 — 슬라이더를 움직이면 여기가 즉시 반응해야 전술을 짜는 의미가 있다.
+   * 킥오프하면 실제로 나온 결과로 바뀐다.
+   */
+  const preMatch = round
+    ? projectMatch(players, round.opponentXI, tactics, round.opponentTactics)
+    : null;
+
   const outcome: MatchOutcome = round
-    ? {
-        // 캠페인: 실제로 치른 시뮬레이션 결과가 내 결과, 역사는 라운드가 들고 있다
-        score: match.finalScore,
-        penalties: match.penalties,
-        projected: false,
-        winProb: alt.homeWinProb,
-        real: { score: round.realScoreline.score, order: `${round.realScoreline.left}–${round.realScoreline.right}` },
-        campaign: true,
-      }
+    ? match.pending && preMatch
+      ? {
+          score: preMatch.score,
+          projected: true,
+          winProb: preMatch.homeWinProb,
+          real: { score: round.realScoreline.score, order: `${round.realScoreline.left}–${round.realScoreline.right}` },
+          campaign: true,
+        }
+      : {
+          // 캠페인: 실제로 치른 시뮬레이션 결과가 내 결과, 역사는 라운드가 들고 있다
+          score: match.finalScore,
+          penalties: match.penalties,
+          projected: false,
+          winProb: alt.homeWinProb,
+          real: { score: round.realScoreline.score, order: `${round.realScoreline.left}–${round.realScoreline.right}` },
+          campaign: true,
+        }
     : {
         // 재생 경기: 기록된 결과가 역사, 전술 기반 예측이 내 결과
         score: alt.score,
@@ -292,7 +312,7 @@ export default function MatchPage() {
                 ? !(outcome.real.score[0] === outcome.score[1] && outcome.real.score[1] === outcome.score[0])
                 : match.finalScore[0] !== alt.score[0] || match.finalScore[1] !== alt.score[1]
             }
-            alt={alt}
+            alt={match.pending && preMatch ? preMatch : alt}
             narrative={lang === "ko" && match.realNarrativeKo ? match.realNarrativeKo : match.realNarrative}
           />
         </div>
@@ -526,7 +546,7 @@ function AlternateHistory({
           <div className="metric-num text-[10px] text-ink-muted">{ko ? "내 팀 먼저" : "you first"}</div>
           <div className="metric-num text-[10px] text-ink-muted">
             {mine.projected
-              ? `${ko ? "최빈 스코어" : "most likely"} · ${alt.scorelineProb}%`
+              ? `${ko ? "예상 · 킥오프 전" : "projected"} · ${alt.scorelineProb}%`
               : ko ? "실제 치른 결과" : "as played"}
           </div>
         </div>

@@ -106,20 +106,24 @@ export function buildRoundMatch(params: {
    * matchId 변화를 못 느껴 옛 경기를 계속 그린다. id를 바꾸면 전부 자연히 다시 그려진다.
    */
   revision?: number;
+  /** 킥오프 전 — 타임라인 없이 껍데기만 만든다 (결과를 미리 확정하지 않기 위해) */
+  pending?: boolean;
 }): MatchData {
-  const { round, korea, koreaXI, koreaBench, koreaShape, tactics, carryOver, revision = 0 } = params;
+  const { round, korea, koreaXI, koreaBench, koreaShape, tactics, carryOver, revision = 0, pending } = params;
   const matchId = revision ? `campaign-${round.id}@${revision}` : `campaign-${round.id}`;
 
-  const sim = simulateTimeline({
-    // 시드는 라운드 기준으로 고정한다 — revision은 carryOver의 fromMinute이 이미 반영한다
-    matchId: `campaign-${round.id}`,
-    homeXI: koreaXI,
-    awayXI: round.opponentXI,
-    homeTactics: tactics,
-    awayTactics: round.opponentTactics,
-    needsWinner: round.needsWinner !== false,
-    carryOver,
-  });
+  const sim = pending
+    ? { timeline: [], finalScore: [0, 0] as [number, number], penalties: undefined, lambda: [0, 0] as [number, number] }
+    : simulateTimeline({
+        // 시드는 라운드 기준으로 고정한다 — revision은 carryOver의 fromMinute이 이미 반영한다
+        matchId: `campaign-${round.id}`,
+        homeXI: koreaXI,
+        awayXI: round.opponentXI,
+        homeTactics: tactics,
+        awayTactics: round.opponentTactics,
+        needsWinner: round.needsWinner !== false,
+        carryOver,
+      });
 
   return {
     id: matchId,
@@ -139,6 +143,7 @@ export function buildRoundMatch(params: {
     timeline: sim.timeline,
     finalScore: sim.finalScore,
     penalties: sim.penalties,
+    pending,
     weakFlank: round.weakFlank,
     dataSource: "simulated",
     timelineNoteKo:
