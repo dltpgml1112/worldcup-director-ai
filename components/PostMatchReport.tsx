@@ -4,7 +4,7 @@ import { useMemo, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
 import type { MatchData, Tactics } from "@/lib/types";
 import type { MatchSnapshot } from "@/lib/matchEngine";
-import { buildReport } from "@/lib/postMatch";
+import { buildReport, type MatchOutcome } from "@/lib/postMatch";
 import { useGame } from "@/lib/store";
 import { t } from "@/lib/i18n";
 import PlayerCard from "@/components/PlayerCard";
@@ -13,14 +13,14 @@ export default function PostMatchReport({
   match,
   snap,
   tactics,
-  alt,
+  outcome,
   open,
   onClose,
 }: {
   match: MatchData;
   snap: MatchSnapshot;
   tactics: Tactics;
-  alt: { score: [number, number]; homeWinProb: number };
+  outcome: MatchOutcome;
   open: boolean;
   onClose: () => void;
 }) {
@@ -34,8 +34,8 @@ export default function PostMatchReport({
   const awayName = lang === "ko" ? match.away.nameKo : match.away.name;
 
   const report = useMemo(
-    () => buildReport(match, players, snap, tactics, coachName, alt, lang),
-    [match, players, snap, tactics, coachName, alt, lang]
+    () => buildReport(match, players, snap, tactics, coachName, outcome, lang),
+    [match, players, snap, tactics, coachName, outcome, lang]
   );
   const motmPlayer = players.find((p) => p.id === report.motm.id);
 
@@ -43,12 +43,12 @@ export default function PostMatchReport({
     lang === "ko"
       ? `⚽ World Cup Director AI — 경기 후 리포트\n` +
         `${coachName} · ${homeName} vs ${awayName} (${match.year})\n` +
-        `실제: ${match.finalScore[0]}–${match.finalScore[1]}  |  나의 결과: ${alt.score[0]}–${alt.score[1]}\n` +
+        `실제 역사: ${outcome.real.order} ${outcome.real.score[0]}–${outcome.real.score[1]}  |  나의 결과: ${outcome.score[0]}–${outcome.score[1]}\n` +
         `등급 ${report.grade} (${report.gradeScore}/100) · MOTM ${report.motm.name} ${report.motm.rating.toFixed(1)}/10\n` +
         `"${report.headlines[0]}"`
       : `⚽ World Cup Director AI — Full-Time Report\n` +
         `${coachName} · ${homeName} vs ${awayName} (${match.year})\n` +
-        `Real: ${match.finalScore[0]}–${match.finalScore[1]}  |  Your history: ${alt.score[0]}–${alt.score[1]}\n` +
+        `Real history: ${outcome.real.order} ${outcome.real.score[0]}–${outcome.real.score[1]}  |  Yours: ${outcome.score[0]}–${outcome.score[1]}\n` +
         `Grade ${report.grade} (${report.gradeScore}/100) · MOTM ${report.motm.name} ${report.motm.rating.toFixed(1)}/10\n` +
         `"${report.headlines[0]}"`;
 
@@ -89,14 +89,14 @@ export default function PostMatchReport({
     // 팀 & 스코어
     ctx.fillStyle = "#e8eef7";
     ctx.font = "700 64px system-ui, sans-serif";
-    ctx.fillText(`${match.home.flag} ${match.home.code}  ${alt.score[0]} – ${alt.score[1]}  ${match.away.code} ${match.away.flag}`, 70, 230);
+    ctx.fillText(`${match.home.flag} ${match.home.code}  ${outcome.score[0]} – ${outcome.score[1]}  ${match.away.code} ${match.away.flag}`, 70, 230);
 
     ctx.fillStyle = "#7c8aa0";
     ctx.font = "500 24px system-ui, sans-serif";
     ctx.fillText(
       ko
-        ? `실제 결과 ${match.finalScore[0]}–${match.finalScore[1]}  ·  예상 승률 ${alt.homeWinProb}%`
-        : `Real result ${match.finalScore[0]}–${match.finalScore[1]}  ·  Projected win probability ${alt.homeWinProb}%`,
+        ? `실제 역사 ${outcome.real.order} ${outcome.real.score[0]}–${outcome.real.score[1]}  ·  예상 승률 ${outcome.winProb}%`
+        : `Real history ${outcome.real.order} ${outcome.real.score[0]}–${outcome.real.score[1]}  ·  Projected win probability ${outcome.winProb}%`,
       70,
       275
     );
@@ -135,7 +135,9 @@ export default function PostMatchReport({
     a.click();
   };
 
-  const realChanged = alt.score[0] !== match.finalScore[0] || alt.score[1] !== match.finalScore[1];
+  const realChanged = outcome.campaign
+    ? !(outcome.real.score[0] === outcome.score[1] && outcome.real.score[1] === outcome.score[0])
+    : outcome.score[0] !== match.finalScore[0] || outcome.score[1] !== match.finalScore[1];
 
   return (
     <AnimatePresence>
@@ -168,9 +170,23 @@ export default function PostMatchReport({
 
             {/* 스코어 요약 */}
             <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <SummaryTile label={t(lang, "rep.real")} value={`${match.finalScore[0]}–${match.finalScore[1]}`} />
-              <SummaryTile label={t(lang, "rep.your")} value={`${alt.score[0]}–${alt.score[1]}`} accent />
-              <SummaryTile label={t(lang, "rep.winprob")} value={`${alt.homeWinProb}%`} />
+              {/* 실제 역사는 공식 순서(팀 코드 병기), 내 결과는 내 팀 먼저 */}
+              <SummaryTile
+                label={lang === "ko" ? "실제 역사" : "REAL HISTORY"}
+                value={`${outcome.real.score[0]}–${outcome.real.score[1]}`}
+                sub={outcome.real.order}
+              />
+              <SummaryTile
+                label={t(lang, "rep.your")}
+                value={`${outcome.score[0]}–${outcome.score[1]}`}
+                sub={
+                  outcome.penalties
+                    ? `${lang === "ko" ? "승부차기" : "pens"} ${outcome.penalties[0]}–${outcome.penalties[1]}`
+                    : lang === "ko" ? "내 팀 먼저" : "you first"
+                }
+                accent
+              />
+              <SummaryTile label={t(lang, "rep.winprob")} value={`${outcome.winProb}%`} />
               <SummaryTile label={t(lang, "rep.grade")} value={report.grade} gold />
             </div>
 
@@ -294,7 +310,20 @@ export default function PostMatchReport({
   );
 }
 
-function SummaryTile({ label, value, accent, gold }: { label: string; value: string; accent?: boolean; gold?: boolean }) {
+function SummaryTile({
+  label,
+  value,
+  sub,
+  accent,
+  gold,
+}: {
+  label: string;
+  value: string;
+  /** 값 아래 작은 보조 표기 (팀 순서·승부차기 등) */
+  sub?: string;
+  accent?: boolean;
+  gold?: boolean;
+}) {
   return (
     <div
       className={`rounded-xl border p-3 text-center ${
@@ -307,6 +336,7 @@ function SummaryTile({ label, value, accent, gold }: { label: string; value: str
       >
         {value}
       </div>
+      {sub && <div className="tabular-nums text-[10px] text-white/35">{sub}</div>}
     </div>
   );
 }

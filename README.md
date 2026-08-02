@@ -76,7 +76,9 @@ npm run build    # production build
 
 ## What's implemented (vertical slice, AAA feel)
 - **Home** — dark stadium hero, canvas crowd + camera flashes + light sweep, coach name,
-  campaign briefing, and a replay list of the real matches.
+  campaign briefing, and a replay list of the real matches — **pick either side** to manage
+  (Argentina *or* France in the 2022 final, France *or* Croatia in 2018, Korea *or* South Africa
+  in the 2026 group decider).
 - **Campaign ("Rewriting 2026")** — six rounds from the group decider to the final, every opponent
   taken from the real 2026 bracket. Win to advance, lose and it ends exactly as history did.
   Knockout draws go to extra time and penalties. Progress is saved locally, so a refresh in the
@@ -150,6 +152,8 @@ npx tsx scripts/check-sim.mts         # 스코어 분포 200경기 · 결정론 
 npx tsx scripts/check-campaign.mts    # 캠페인 완주 · 탈락 경로 · 대진 · 등번호 검증
 npx tsx scripts/check-midmatch.mts    # 경기 중 전술 변경 — 과거 보존 · 이후 변화
 npx tsx scripts/check-ballsim.mts     # 공·선수 시뮬레이션이 멎지 않는가 (골 직후 포함)
+npx tsx scripts/check-report.mts      # 등급이 실제 결과를 따르는가
+npx tsx scripts/check-mirror.mts      # 팀 선택(경기 뒤집기)이 전부 일관된가
 ```
 
 ## Architecture

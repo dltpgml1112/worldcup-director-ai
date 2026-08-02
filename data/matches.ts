@@ -132,6 +132,22 @@ export const KOR_2026_BENCH = buildBench("kor26", [
   { name: "Lee Chung-yong", nameKo: "이청용", num: 30, role: "RW", rating: 83, legend: true },
 ]);
 
+/**
+ * 남아공 벤치 — 2026 최종 엔트리 26인 중 이 경기 선발을 뺀 선수들 (실제 등번호).
+ * 사용자가 남아공을 맡을 때 쓴다. 모레미·애덤스는 실제로 이 경기에 교체 투입됐다.
+ */
+export const RSA_2026_BENCH = buildBench("rsa26b", [
+  { name: "Tshepang Moremi", nameKo: "체팡 모레미", num: 8, role: "RW", rating: 76 },
+  { name: "Jayden Adams", nameKo: "제이든 애덤스", num: 23, role: "CM", rating: 75 },
+  { name: "Lyle Foster", nameKo: "라일 포스터", num: 9, role: "ST", rating: 77 },
+  { name: "Evidence Makgopa", nameKo: "에비던스 막고파", num: 17, role: "ST", rating: 73 },
+  { name: "Teboho Mokoena", nameKo: "테보호 모코에나", num: 4, role: "CM", rating: 77 },
+  { name: "Themba Zwane", nameKo: "템바 즈와네", num: 11, role: "AM", rating: 77 },
+  { name: "Nkosinathi Sibisi", nameKo: "은코시나티 시비시", num: 19, role: "CB", rating: 74 },
+  { name: "Khulumani Ndamane", nameKo: "쿨루마니 은다마네", num: 3, role: "CB", rating: 73 },
+  { name: "Sipho Chaine", nameKo: "시포 차이네", num: 16, role: "GK", rating: 75 },
+]);
+
 export const RSA_2026 = buildLineup("rsa26", [
   { name: "Ronwen Williams", nameKo: "론웬 윌리엄스", num: 1, role: "GK", rating: 80, x: 50, y: 7, captain: true },
   { name: "Aubrey Modiba", nameKo: "오브리 모디바", num: 6, role: "LB", rating: 76, x: 16, y: 26 },
@@ -154,6 +170,28 @@ const ARG_2022_BENCH = buildBench("arg22", [
   { name: "Pezzella", num: 6, role: "CB", rating: 79 },
   { name: "Acuña", num: 8, role: "LB", rating: 80 },
   { name: "Palacios", num: 14, role: "CM", rating: 78 },
+]);
+
+/** 2022 결승 프랑스 벤치 — 사용자가 프랑스를 맡을 때 쓴다 (실제 교체 투입 선수 위주) */
+const FRA_2022_BENCH = buildBench("fra22", [
+  { name: "Kolo Muani", nameKo: "콜로 무아니", num: 12, role: "ST", rating: 83 },
+  { name: "M. Thuram", nameKo: "마르퀴스 튀랑", num: 24, role: "ST", rating: 82 },
+  { name: "Camavinga", nameKo: "카마빙가", num: 25, role: "CM", rating: 83 },
+  { name: "Coman", nameKo: "코망", num: 20, role: "RW", rating: 83 },
+  { name: "Fofana", nameKo: "포파나", num: 13, role: "DM", rating: 80 },
+  { name: "Disasi", nameKo: "디사시", num: 3, role: "CB", rating: 79 },
+  { name: "Areola", nameKo: "아레올라", num: 16, role: "GK", rating: 78 },
+]);
+
+/** 2018 결승 크로아티아 벤치 */
+const CRO_2018_BENCH = buildBench("cro18", [
+  { name: "Kramarić", nameKo: "크라마리치", num: 9, role: "ST", rating: 81 },
+  { name: "Pjaca", nameKo: "피야차", num: 20, role: "LW", rating: 77 },
+  { name: "Badelj", nameKo: "바델리", num: 19, role: "DM", rating: 79 },
+  { name: "Kalinić", nameKo: "칼리니치", num: 16, role: "ST", rating: 78 },
+  { name: "Ćorluka", nameKo: "출루카", num: 5, role: "CB", rating: 77 },
+  { name: "Bradarić", nameKo: "브라다리치", num: 13, role: "LB", rating: 74 },
+  { name: "Livaković", nameKo: "리바코비치", num: 1, role: "GK", rating: 79 },
 ]);
 
 const FRA_2018_BENCH = buildBench("fra18", [
@@ -256,6 +294,7 @@ export const MATCHES: MatchData[] = [
     homeXI: KOR_2026,
     awayXI: RSA_2026,
     homeBench: KOR_2026_BENCH,
+    awayBench: RSA_2026_BENCH,
     homeShape: "3-4-3",
     awayShape: "4-2-3-1",
     // 사용자 팀(한국)을 home 슬롯에 두지만, 실제 홈은 남아공이었다
@@ -319,6 +358,7 @@ export const MATCHES: MatchData[] = [
     homeXI: ARG_2022,
     awayXI: FRA_2022,
     homeBench: ARG_2022_BENCH,
+    awayBench: FRA_2022_BENCH,
     finalScore: [3, 3],
     penalties: [4, 2],
     weakFlank: "left",
@@ -360,6 +400,7 @@ export const MATCHES: MatchData[] = [
     homeXI: FRA_2018,
     awayXI: CRO_2018,
     homeBench: FRA_2018_BENCH,
+    awayBench: CRO_2018_BENCH,
     finalScore: [4, 2],
     weakFlank: "right",
     dataSource: "real",

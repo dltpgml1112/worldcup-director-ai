@@ -1,5 +1,6 @@
 import { create } from "zustand";
-import type { FormationKey, Player, Tactics } from "./types";
+import type { FormationKey, Player, Side, Tactics } from "./types";
+import { mirrorMatch } from "./fixture";
 import type { Lang } from "./i18n";
 import { DEFAULT_TACTICS } from "./matchEngine";
 import { applyFormation } from "./formations";
@@ -106,8 +107,11 @@ interface GameState {
   /** 조준한 선수가 있으면 교체 실행. 반환값은 실제 교체 여부 */
   dropBenchDrag: () => boolean;
   cancelBenchDrag: () => void;
-  /** matchId를 생략하면 캠페인 시작, 주면 그 실측 경기만 단독 재생 */
-  setup: (p: { coachName: string; matchId?: string }) => void;
+  /**
+   * matchId를 생략하면 캠페인 시작, 주면 그 실측 경기만 단독 재생.
+   * `side: "away"`면 원정팀을 맡는다 (경기를 좌우로 뒤집어 적재한다).
+   */
+  setup: (p: { coachName: string; matchId?: string; side?: Side }) => void;
   setFormation: (f: FormationKey) => void;
   setTactic: <K extends keyof Tactics>(k: K, v: Tactics[K]) => void;
   applyAdvice: (advice: { formation?: FormationKey; tactics?: Partial<Tactics> }) => void;
@@ -400,7 +404,7 @@ export const useGame = create<GameState>((set, get) => ({
    *  - matchId 없이 부르면 **캠페인 시작** (A조 3차전 남아공전부터)
    *  - matchId를 주면 그 실측 경기만 단독 재생 (2022·2018 결승 다시보기)
    */
-  setup: ({ coachName, matchId }) => {
+  setup: ({ coachName, matchId, side = "home" }) => {
     if (!matchId) {
       set({
         coachName,
@@ -416,10 +420,13 @@ export const useGame = create<GameState>((set, get) => ({
       return;
     }
 
-    const match = getMatch(matchId);
+    // 원정팀을 맡으면 경기를 뒤집어 등록한다 — 엔진은 사용자를 항상 home 슬롯으로 본다
+    const base = getMatch(matchId);
+    const match = base && side === "away" ? mirrorMatch(base) : base;
+    if (match && match.id !== matchId) registerMatch(match);
     set({
       coachName,
-      matchId,
+      matchId: match?.id ?? matchId,
       roundId: null,
       campaignResults: [],
       eliminated: false,

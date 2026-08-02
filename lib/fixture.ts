@@ -23,6 +23,37 @@ export function orientFixture<T>(
   };
 }
 
+/**
+ * 사용자가 **원정팀을 맡을 수 있게** 경기를 좌우로 뒤집는다.
+ *
+ * 엔진 전체가 "사용자 팀 = home 슬롯"으로 굳어 있어서(lib/types.ts의 actualHome 주석),
+ * 아르헨티나-프랑스 결승에서 프랑스를 맡으려면 데이터 자체를 뒤집어 넘기는 수밖에 없다.
+ * 리팩터링 없이 재생 경기에서 팀 선택을 열어주는 방법이다.
+ *
+ * 스코어·이벤트의 side·벤치·대형·실제 홈 표기까지 전부 함께 뒤집어야 한 군데도
+ * 어긋나지 않는다.
+ */
+export function mirrorMatch(m: MatchData): MatchData {
+  return {
+    ...m,
+    id: `${m.id}@away`,
+    home: m.away,
+    away: m.home,
+    homeXI: m.awayXI,
+    awayXI: m.homeXI,
+    homeBench: m.awayBench,
+    awayBench: m.homeBench,
+    homeShape: m.awayShape,
+    awayShape: m.homeShape,
+    finalScore: [m.finalScore[1], m.finalScore[0]],
+    penalties: m.penalties ? [m.penalties[1], m.penalties[0]] : undefined,
+    timeline: m.timeline.map((e) => ({ ...e, side: e.side === "home" ? "away" : "home" })),
+    // 피치가 좌우로 뒤집히므로 취약 사이드도 반대가 된다
+    weakFlank: m.weakFlank === "left" ? "right" : "left",
+    actualHome: (m.actualHome ?? "home") === "home" ? "away" : "home",
+  };
+}
+
 /** 실제 홈팀 기준으로 정렬한 스코어 (예: [1, 0] = 남아공 1 - 대한민국 0) */
 export function orientedScore(match: Pick<MatchData, "actualHome">, score: [number, number]): [number, number] {
   const { left, right } = orientFixture(match, score[0], score[1]);

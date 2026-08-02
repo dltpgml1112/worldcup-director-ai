@@ -7,6 +7,7 @@ import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate, type AlternateResult } from "@/lib/matchEngine";
 import { orientFixture, orientedScore } from "@/lib/fixture";
+import type { MatchOutcome } from "@/lib/postMatch";
 import {
   startCrowd,
   stopCrowd,
@@ -215,6 +216,36 @@ export default function MatchPage() {
     : match.finalScore[0] > match.finalScore[1];
   const round = CAMPAIGN_ROUNDS.find((r) => r.id === roundId);
 
+  /*
+   * 결과 한 벌 — 대체역사 패널과 경기후 리포트가 **같은 숫자**를 쓰게 한다.
+   * 예전에는 각자 match.finalScore / alt.score 를 섞어 써서, 2-1로 이겼는데 리포트에는
+   * "실제 2-1 / 나의 결과 1-1 / 등급 D"가 떴다.
+   */
+  const outcome: MatchOutcome = round
+    ? {
+        // 캠페인: 실제로 치른 시뮬레이션 결과가 내 결과, 역사는 라운드가 들고 있다
+        score: match.finalScore,
+        penalties: match.penalties,
+        projected: false,
+        winProb: alt.homeWinProb,
+        real: { score: round.realScoreline.score, order: `${round.realScoreline.left}–${round.realScoreline.right}` },
+        campaign: true,
+      }
+    : {
+        // 재생 경기: 기록된 결과가 역사, 전술 기반 예측이 내 결과
+        score: alt.score,
+        projected: true,
+        winProb: alt.homeWinProb,
+        real: {
+          score: orientedScore(match, match.finalScore),
+          order:
+            orientFixture(match, match.home, match.away).left.code +
+            "–" +
+            orientFixture(match, match.home, match.away).right.code,
+        },
+        campaign: false,
+      };
+
   return (
     <main className="min-h-screen px-4 py-4 lg:px-6">
       {/* 상단 바 */}
@@ -254,32 +285,11 @@ export default function MatchPage() {
           <TeamComparison match={match} snap={snap} minute={minute} />
           <AlternateHistory
             lang={lang}
-            real={
-              /*
-               * 캠페인 경기의 finalScore 는 '이번 판의 시뮬레이션 결과'지 역사가 아니다.
-               * 32강부터는 한국이 없던 경기라 한국 기준 스코어로 환산할 수도 없다
-               * (그 자리의 실제 경기는 캐나다 1-0 남아공이었다). 라운드가 들고 있는
-               * 실제 스코어라인을 그대로 쓴다.
-               */
-              round
-                ? { score: round.realScoreline.score, order: `${round.realScoreline.left}–${round.realScoreline.right}` }
-                : {
-                    score: orientedScore(match, match.finalScore),
-                    order:
-                      orientFixture(match, match.home, match.away).left.code +
-                      "–" +
-                      orientFixture(match, match.home, match.away).right.code,
-                  }
-            }
-            // 캠페인은 실제로 치른 결과가 내 결과, 재생 경기는 전술 기반 예측이 내 결과
-            mine={
-              round
-                ? { score: match.finalScore, penalties: match.penalties, projected: false }
-                : { score: alt.score, projected: true }
-            }
+            real={outcome.real}
+            mine={{ score: outcome.score, penalties: outcome.penalties, projected: outcome.projected }}
             changed={
-              round
-                ? !(round.realScoreline.score[0] === match.finalScore[1] && round.realScoreline.score[1] === match.finalScore[0])
+              outcome.campaign
+                ? !(outcome.real.score[0] === outcome.score[1] && outcome.real.score[1] === outcome.score[0])
                 : match.finalScore[0] !== alt.score[0] || match.finalScore[1] !== alt.score[1]
             }
             alt={alt}
@@ -362,7 +372,7 @@ export default function MatchPage() {
         match={match}
         snap={snap}
         tactics={tactics}
-        alt={alt}
+        outcome={outcome}
         open={reportOpen}
         onClose={() => setReportOpen(false)}
       />

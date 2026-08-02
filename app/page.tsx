@@ -58,8 +58,8 @@ export default function Home() {
     router.push("/match");
   };
 
-  const startReplay = (matchId: string) => {
-    setup({ coachName: coach(), matchId });
+  const startReplay = (matchId: string, side: "home" | "away") => {
+    setup({ coachName: coach(), matchId, side });
     router.push("/match");
   };
 
@@ -189,24 +189,46 @@ export default function Home() {
 
           {/* ── 실측 경기 다시보기 ── */}
           <div className="mt-5">
-            <div className="mb-2 text-xs font-semibold uppercase tracking-widest text-white/40">
+            <div className="mb-1 text-xs font-semibold uppercase tracking-widest text-white/40">
               {ko ? "실제 경기 다시보기" : "Replay a real match"}
             </div>
-            <div className="flex flex-wrap gap-2">
-              {replays.map((m) => (
-                <button
-                  key={m.id}
-                  onClick={() => startReplay(m.id)}
-                  className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
-                >
-                  <span>{orientFixture(m, m.home, m.away).left.flag}</span>
-                  <span className="metric-num font-semibold">{orientedScore(m, m.finalScore).join("–")}</span>
-                  <span>{orientFixture(m, m.home, m.away).right.flag}</span>
-                  <span className="text-white/40">
-                    {m.year} {stageLabel(lang, m.stage, m.stageKo)}
-                  </span>
-                </button>
-              ))}
+            <p className="mb-2 text-[11px] text-white/40">
+              {ko ? "맡고 싶은 팀을 고르세요." : "Pick the side you want to manage."}
+            </p>
+            <div className="space-y-2">
+              {replays.map((m) => {
+                const { left, right } = orientFixture(m, m.home, m.away);
+                // 버튼은 팀별로 — 어느 쪽을 맡을지 고르게 한다
+                const sideOf = (team: typeof m.home): "home" | "away" => (team.id === m.home.id ? "home" : "away");
+                return (
+                  <div
+                    key={m.id}
+                    className="rounded-xl border border-white/10 bg-white/5 p-2.5"
+                  >
+                    <div className="mb-1.5 flex items-center gap-2 text-[11px] text-white/40">
+                      <span className="metric-num font-semibold text-white/60">
+                        {orientedScore(m, m.finalScore).join("–")}
+                      </span>
+                      <span>
+                        {m.year} {stageLabel(lang, m.stage, m.stageKo)}
+                      </span>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[left, right].map((team) => (
+                        <button
+                          key={team.id}
+                          onClick={() => startReplay(m.id, sideOf(team))}
+                          className="flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-1.5 text-sm text-white/75 transition hover:border-neon-grass/50 hover:bg-neon-grass/10"
+                        >
+                          <span>{team.flag}</span>
+                          <span className="font-semibold">{ko ? team.nameKo : team.name}</span>
+                          <span className="text-[10px] text-white/40">{ko ? "감독" : "manage"}</span>
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         </motion.div>

@@ -14,6 +14,27 @@ export interface PlayerRating {
   note: string;
 }
 
+/**
+ * 이 경기의 결과 한 벌.
+ *
+ * 예전에는 리포트가 `match.finalScore`를 '실제 결과'로, 포아송 최빈 스코어를 '나의 결과'로
+ * 썼다. 캠페인에서는 둘 다 틀렸다 — `finalScore`는 이번 판의 시뮬레이션 결과지 역사가
+ * 아니고, 내가 실제로 2-1로 이겼는데 최빈 스코어 1-1이 '나의 결과'로 떴다.
+ * 등급도 그 예측값으로 매겨져 이겨도 D가 나왔다.
+ */
+export interface MatchOutcome {
+  /** 내 팀 기준, 이 경기의 결과 */
+  score: [number, number];
+  penalties?: [number, number];
+  /** 예측 스코어인가(재생 경기), 실제로 치른 결과인가(캠페인) */
+  projected: boolean;
+  /** 전술 기반 승리 확률 % */
+  winProb: number;
+  /** 이 자리의 실제 역사 — 공식 기록 순서 */
+  real: { score: [number, number]; order: string };
+  campaign: boolean;
+}
+
 export interface MatchReport {
   ratings: PlayerRating[];
   motm: PlayerRating;
@@ -44,7 +65,7 @@ export function buildReport(
   snap: MatchSnapshot,
   tactics: Tactics,
   coachName: string,
-  alt: { score: [number, number]; homeWinProb: number },
+  outcome: MatchOutcome,
   lang: Lang = "en"
 ): MatchReport {
   const ko = lang === "ko";
@@ -91,13 +112,26 @@ export function buildReport(
 
   const motm = [...ratings].sort((a, b) => b.rating - a.rating || b.goals - a.goals)[0];
 
-  // 등급: 대체역사 승률 + 결과
-  const [ug, og] = alt.score;
-  const won = ug > og;
-  const drew = ug === og;
+  /*
+   * 등급 — **실제로 낸 결과**가 기준이다.
+   *
+   * 예전에는 포아송 예측 승률에 결과 보정을 얹었는데, 캠페인에서 2-1로 이기고도 예측
+   * 승률이 35%면 등급이 D로 나왔다. 감독이 한 일과 평가가 어긋난다.
+   * 캠페인은 결과가 전부다 — 이겼는지, 몇 골 차인지. 예측 승률은 소폭 보정만 한다.
+   */
+  const [ug, og] = outcome.score;
+  const wonByPens = outcome.penalties ? outcome.penalties[0] > outcome.penalties[1] : false;
+  const won = ug > og || wonByPens;
+  const drew = ug === og && !outcome.penalties;
+  const diff = ug - og;
   const gradeScore = Math.max(
     0,
-    Math.min(100, alt.homeWinProb + (won ? 16 : drew ? 4 : -6) + (ug - og) * 5)
+    Math.min(
+      100,
+      outcome.campaign
+        ? (won ? 74 : drew ? 56 : 34) + diff * 6 + (outcome.winProb - 50) * 0.15
+        : outcome.winProb + (won ? 16 : drew ? 4 : -6) + diff * 5
+    )
   );
   const grade =
     gradeScore >= 90
@@ -122,11 +156,11 @@ export function buildReport(
    * 라운드와 진출 여부를 총평 맨 앞에 세운다. 경기 데이터가 이미 라운드를 들고 있어서
    * (stage/stageKo) 별도 인자 없이 판단할 수 있다.
    */
-  const isCampaign = match.id.startsWith("campaign-");
+  const isCampaign = outcome.campaign;
   const roundLabel = (ko ? match.stageKo : match.stage) ?? match.stage;
   const isFinalRound = /final/i.test(match.stage) && !/quarter|semi/i.test(match.stage);
-  const throughByPens = match.penalties ? match.penalties[0] > match.penalties[1] : false;
-  const wentThrough = match.finalScore[0] > match.finalScore[1] || throughByPens;
+  const throughByPens = outcome.penalties ? outcome.penalties[0] > outcome.penalties[1] : false;
+  const wentThrough = outcome.score[0] > outcome.score[1] || throughByPens;
 
   const stakeLine = !isCampaign
     ? ""
@@ -141,9 +175,11 @@ export function buildReport(
       ? `${roundLabel} won. Korea are world champions. `
       : `Through the ${roundLabel}. `
     : `Stopped in the ${roundLabel}. `;
-  const realChanged =
-    alt.score[0] !== match.finalScore[0] || alt.score[1] !== match.finalScore[1];
-  const realStr = `${match.finalScore[0]}–${match.finalScore[1]}`;
+  // 역사와 비교 — 실제 역사는 공식 순서라 팀 코드를 함께 붙여야 읽힌다
+  const realStr = `${outcome.real.order} ${outcome.real.score[0]}–${outcome.real.score[1]}`;
+  const realChanged = outcome.campaign
+    ? !(outcome.real.score[0] === og && outcome.real.score[1] === ug)
+    : outcome.score[0] !== match.finalScore[0] || outcome.score[1] !== match.finalScore[1];
 
   let verdict: string;
   let headlines: string[];
@@ -153,7 +189,7 @@ export function buildReport(
     verdict =
       stakeLine +
       `등급 ${grade}. ${homeName}을(를) 이끈 ${coachName} 감독은 ${oppName}을(를) 상대로 ${ug}–${og}으로 ${resultWord} ` +
-      `예상 승률 ${alt.homeWinProb}%를 기록했다. ` +
+      `예상 승률 ${outcome.winProb}%를 기록했다. ` +
       (realChanged
         ? `이는 실제 결과 ${realStr}을(를) 뒤집은 것이다 — 당신의 전술이 역사를 바꿨다.`
         : `스코어는 실제와 같지만, 그 과정은 온전히 당신의 것이었다.`) +
@@ -178,7 +214,7 @@ export function buildReport(
     verdict =
       stakeLine +
       `Grade ${grade}. Directing ${homeName}, ${coachName} ${resultWord} ${oppName} ${ug}–${og} ` +
-      `on a projected ${alt.homeWinProb}% win probability. ` +
+      `on a projected ${outcome.winProb}% win probability. ` +
       (realChanged
         ? `That rewrites the real ${realStr} — history bent to your tactics.`
         : `The scoreline mirrors reality, but the process behind it was all yours.`) +

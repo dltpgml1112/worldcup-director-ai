@@ -88,6 +88,8 @@ export interface MatchData {
   homeXI: Player[];
   awayXI: Player[];
   homeBench?: Player[]; // 사용자(홈) 교체 후보
+  /** 원정팀 교체 후보 — 사용자가 원정팀을 맡으면(mirrorMatch) 이쪽이 벤치가 된다 */
+  awayBench?: Player[];
   timeline: MatchEvent[];
   finalScore: [number, number]; // regulation/ET
   penalties?: [number, number];
