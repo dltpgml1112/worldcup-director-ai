@@ -149,6 +149,7 @@ npx tsx scripts/check-scoreline.mts   # 전술별 최빈 스코어·승무패 �
 npx tsx scripts/check-sim.mts         # 스코어 분포 200경기 · 결정론 검사
 npx tsx scripts/check-campaign.mts    # 캠페인 완주 · 탈락 경로 · 대진 · 등번호 검증
 npx tsx scripts/check-midmatch.mts    # 경기 중 전술 변경 — 과거 보존 · 이후 변화
+npx tsx scripts/check-ballsim.mts     # 공·선수 시뮬레이션이 멎지 않는가 (골 직후 포함)
 ```
 
 ## Architecture

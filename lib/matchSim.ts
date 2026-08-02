@@ -309,6 +309,12 @@ export function stepBall(
      */
     s.height = Math.max(0, s.height - step * 6);
 
+    // 밖에 남은 루즈볼도 되돌린다 (세리머니 중에 비행이 끝난 경우 등)
+    if (s.pos.y < 2 || s.pos.y > 98 || s.pos.x < 2 || s.pos.x > 98) {
+      s.pos = { x: 50, y: 50 };
+      s.chase = [];
+    }
+
     // 팀당 최근접 1명을 추격자로 지정 — 다음 프레임에 공까지 달려간다
     const nearest: Record<Side, { id: string; d: number } | null> = { home: null, away: null };
     let best: SimPlayer | null = null;
@@ -386,14 +392,26 @@ export function stepBall(
     const isScriptedScorer = !!ctx.scriptedScorerId && s.carrierId === ctx.scriptedScorerId;
     const wantShot =
       isScriptedScorer || (ctx.scriptedShot && ctx.scriptedSide === s.side && depth > 68);
-    if (wantShot) {
+    /*
+     * 대본에 없어도 골문 앞까지 몰고 갔으면 때린다.
+     *
+     * 이게 없으면 소유자가 골라인까지 드리블한 뒤 **영원히 그 자리에 선다** — 슛 조건이
+     * 대본에만 걸려 있고, 전방이라 패스할 동료도 없어서 hold만 갱신되기 때문이다.
+     * 골 사이사이에 선수들이 멈춰 보이던 진짜 원인이 이것이었다.
+     *
+     * 단, 스코어는 타임라인이 정한다. 그래서 대본에 없는 슛은 골문을 벗어나게 보낸다 —
+     * 빗나간 슛으로 읽히고, 라인을 넘으면 위의 재개 로직이 공을 중앙으로 되돌린다.
+     */
+    const offScript = !wantShot && depth > 80;
+    if (wantShot || offScript) {
       s.mode = "pass";
       s.from = { ...s.pos };
       s.pos = { ...s.pos };
       s.targetId = null; // 골문으로 — 아무도 받지 않는다
       // 골라인을 넘어 골망 안까지 보낸다 (선 앞에서 멈추면 들어간 게 안 보인다)
       const goalY = s.side === "home" ? 103 : -3;
-      s.to = { x: 50 + (rand(ctx.minute, s.seq++, 7) - 0.5) * 9, y: goalY };
+      const spread = offScript ? 30 : 9; // 빗나간 슛은 골대 바깥으로
+      s.to = { x: 50 + (rand(ctx.minute, s.seq++, 7) - 0.5) * spread, y: goalY };
       s.dur = 0.62;
       s.apex = 1.1;
       s.t = 0;
@@ -408,8 +426,9 @@ export function stepBall(
     mates.forEach((m, i) => {
       const mp = at(m.id);
       if (!mp) return;
+      // 범위를 좁게 잡으면 전방·구석에서 받을 사람이 없어 드리블만 반복한다
       const d = dist(cp, mp);
-      if (d < 6 || d > 48) return;
+      if (d < 4 || d > 58) return;
       const forward = (depthFor(s.side, mp.y) - depth) / 100;
       // 패스 길목에 상대가 있으면 감점
       let blocked = 0;
@@ -481,6 +500,28 @@ export function stepBall(
 
   if (t >= 1) {
     s.height = 0;
+    /*
+     * 필드 밖으로 나간 공은 경기 재개 지점으로 되돌린다.
+     *
+     * 슛은 골라인을 넘어 골망 안(y=103)까지 날아간다. 그런데 선수는 3~97 범위로 묶여
+     * 있어서 그 공에는 **아무도 닿을 수 없다** — PICKUP_R(2.6) 안에 들어갈 방법이 없다.
+     * 그래서 골이 들어간 뒤 공이 골대 뒤에 남고, 선수들은 라인 앞에 서서 멈춘다.
+     * 다음 골의 대본 개입이 있을 때까지 경기가 그대로 멎는다.
+     *
+     * 실제로 골·아웃 다음에는 킥오프나 골킥으로 재개된다. 여기서도 공을 중앙으로
+     * 되돌려 경기를 다시 굴린다.
+     */
+    if (s.pos.y < 2 || s.pos.y > 98 || s.pos.x < 2 || s.pos.x > 98) {
+      s.mode = "loose";
+      s.carrierId = null;
+      s.targetId = null;
+      s.pos = { x: 50, y: 50 };
+      s.from = { x: 50, y: 50 };
+      s.to = { x: 50, y: 50 };
+      s.chase = [];
+      s.duelCool = 0.4;
+      return { turnover: true };
+    }
     if (s.targetId && at(s.targetId)) {
       s.mode = "carry";
       s.carrierId = s.targetId;
