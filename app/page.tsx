@@ -18,7 +18,7 @@ import LangToggle from "@/components/LangToggle";
 import { MATCHES, getMatch } from "@/data/matches";
 import { CAMPAIGN_ROUNDS } from "@/data/wc2026";
 import { REAL_OPENER_ID } from "@/lib/campaign";
-import { useGame, loadCampaign } from "@/lib/store";
+import { useGame, loadCampaign, clearCampaign } from "@/lib/store";
 import { sourceBadge } from "@/lib/provenance";
 import { orientFixture, orientedScore } from "@/lib/fixture";
 import { t, stageLabel } from "@/lib/i18n";
@@ -44,10 +44,24 @@ export default function Home() {
   const [saved, setSaved] = useState<ReturnType<typeof loadCampaign>>(null);
   useEffect(() => setSaved(loadCampaign()), []);
 
-  const savedRound = saved && CAMPAIGN_ROUNDS.find((r) => r.id === saved.roundId);
+  /*
+   * 「이어하기」는 **진행이 실제로 있을 때만** 띄운다.
+   *
+   * 첫 라운드를 아직 안 끝냈으면 이어할 게 없는데도 카드가 떠서, 시연 녹화처럼 깨끗한
+   * 첫 화면이 필요할 때 방해가 된다. 옆의 ✕로 기록을 지우면 즉시 사라진다.
+   */
+  const savedRound =
+    saved && saved.campaignResults.length > 0
+      ? CAMPAIGN_ROUNDS.find((r) => r.id === saved.roundId)
+      : undefined;
 
   const resume = () => {
     if (resumeCampaign()) router.push("/match");
+  };
+
+  const discard = () => {
+    clearCampaign();
+    setSaved(null);
   };
 
   const opener = getMatch(REAL_OPENER_ID);
@@ -112,27 +126,33 @@ export default function Home() {
 
           {/* ── 이어하기 — 진행 중인 캠페인이 있으면 맨 위에 ── */}
           {savedRound && !saved?.champion && (
-            <button
-              onClick={resume}
-              className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-neon-grass/40 bg-neon-grass/10 px-4 py-3 text-left transition hover:bg-neon-grass/15"
-            >
-              <span className="min-w-0">
-                <span className="block text-[10px] font-semibold uppercase tracking-widest text-neon-grass">
-                  {ko ? "진행 중인 캠페인" : "Campaign in progress"}
-                </span>
-                <span className="block truncate text-sm text-white/80">
-                  {savedRound.opponent.flag} {ko ? savedRound.stageKo : savedRound.stage} ·{" "}
-                  {ko ? savedRound.opponent.nameKo : savedRound.opponent.name}
-                  {saved && saved.campaignResults.length > 0 && (
+            <div className="mb-4 flex items-center gap-2 rounded-2xl border border-neon-grass/40 bg-neon-grass/10 px-4 py-3">
+              <button onClick={resume} className="flex min-w-0 flex-1 items-center justify-between gap-3 text-left">
+                <span className="min-w-0">
+                  <span className="block text-[10px] font-semibold uppercase tracking-widest text-neon-grass">
+                    {ko ? "진행 중인 캠페인" : "Campaign in progress"}
+                  </span>
+                  <span className="block truncate text-sm text-white/80">
+                    {savedRound.opponent.flag} {ko ? savedRound.stageKo : savedRound.stage} ·{" "}
+                    {ko ? savedRound.opponent.nameKo : savedRound.opponent.name}
                     <span className="text-white/50">
                       {" "}
-                      · {ko ? `${saved.campaignResults.length}경기 완료` : `${saved.campaignResults.length} played`}
+                      · {ko ? `${saved!.campaignResults.length}경기 완료` : `${saved!.campaignResults.length} played`}
                     </span>
-                  )}
+                  </span>
                 </span>
-              </span>
-              <span className="chip shrink-0 bg-neon-grass/20 text-neon-grass">{ko ? "이어하기" : "Resume"}</span>
-            </button>
+                <span className="chip shrink-0 bg-neon-grass/20 text-neon-grass">{ko ? "이어하기" : "Resume"}</span>
+              </button>
+              {/* 기록 지우기 — 시연 녹화처럼 깨끗한 첫 화면이 필요할 때 */}
+              <button
+                onClick={discard}
+                title={ko ? "저장된 기록 지우기" : "Discard saved run"}
+                aria-label={ko ? "저장된 기록 지우기" : "Discard saved run"}
+                className="shrink-0 rounded-lg px-2 py-1 text-white/40 transition hover:bg-white/10 hover:text-white/80"
+              >
+                ✕
+              </button>
+            </div>
           )}
 
           {/* ── 캠페인 브리핑 ── */}

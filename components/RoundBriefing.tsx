@@ -34,11 +34,16 @@ export default function RoundBriefing() {
   const isCampaign = matchId.startsWith("campaign-");
   const showBriefing = isCampaign && !!round && !dismissed && minute === 0 && !eliminated && !champion;
 
-  // 브리핑이 떠 있는 동안에는 튜토리얼이 시작되지 않게 알린다
+  /*
+   * 브리핑이 떠 있는 동안에는 튜토리얼이 시작되지 않게 알린다.
+   *
+   * 여는 쪽은 loadRound()가 이미 briefingOpen: true 로 확정해 둔다 (첫 렌더 깜빡임 방지).
+   * 여기서는 **닫히는 순간만** 알린다 — cleanup으로 false를 쏘면 의존성이 바뀔 때마다
+   * true/false가 오가면서 튜토리얼이 한 프레임 열렸다 닫힌다.
+   */
   const setBriefingOpen = useGame((s) => s.setBriefingOpen);
   useEffect(() => {
-    setBriefingOpen(showBriefing);
-    return () => setBriefingOpen(false);
+    if (!showBriefing) setBriefingOpen(false);
   }, [showBriefing, setBriefingOpen]);
 
   // 단독 재생(2022·2018 결승 다시보기)에는 캠페인 UI가 뜨지 않는다

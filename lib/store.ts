@@ -238,6 +238,12 @@ function loadRound(roundId: string, tactics: Tactics, xiOverride?: Player[]) {
     roundId: round.id,
     matchRevision: 0,
     matchId,
+    /*
+     * 라운드를 적재하면 브리핑이 반드시 뜬다 — 그 사실을 여기서 같이 확정한다.
+     * 브리핑 컴포넌트의 effect에 맡기면 첫 렌더에서는 아직 false라, 튜토리얼이 한 프레임
+     * 먼저 열렸다가 닫히며 깜빡인다.
+     */
+    briefingOpen: true,
     players: baseXI.map((p) => ({ ...p, onAt: 0, stamina: 100 })),
     bench: baseBench.map((p) => ({ ...p })),
     subsUsed: 0,
@@ -428,6 +434,8 @@ export const useGame = create<GameState>((set, get) => ({
       coachName,
       matchId: match?.id ?? matchId,
       roundId: null,
+      // 단독 재생에는 브리핑이 없다 — 튜토리얼이 바로 시작해도 된다
+      briefingOpen: false,
       campaignResults: [],
       eliminated: false,
       champion: false,

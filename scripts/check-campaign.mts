@@ -94,6 +94,23 @@ console.log(`A조 3차전 결과 ${opener.finalScore[0]}-${opener.finalScore[1]}
 s().finishRound();
 console.log(`탈락 처리: ${s().eliminated ? "OK" : "안 됨 (다음 라운드로 넘어감)"}`);
 
+console.log("\n=== 브리핑/튜토리얼 순서 ===");
+{
+  // 캠페인 시작 시점에 briefingOpen이 이미 true여야 튜토리얼이 먼저 열리지 않는다
+  s().resetCampaign();
+  s().setup({ coachName: "테스트" });
+  const onCampaign = s().briefingOpen;
+  s().setup({ coachName: "테스트", matchId: "final-2022" });
+  const onReplay = s().briefingOpen;
+  console.log(`  캠페인 시작 시 briefingOpen=${onCampaign} ${onCampaign ? "✓" : "❌ 튜토리얼이 먼저 열린다"}`);
+  console.log(`  단독 재생 시 briefingOpen=${onReplay} ${!onReplay ? "✓" : "❌ 튜토리얼이 영영 안 열린다"}`);
+
+  // 원정팀 선택 시 내 팀이 바뀌는지
+  s().setup({ coachName: "테스트", matchId: "final-2022", side: "away" });
+  const away = getMatch(s().matchId);
+  console.log(`  프랑스로 2022 결승: 내 팀 ${away?.home.nameKo} / 벤치 ${s().bench.length}명 ${away?.home.code === "FRA" && s().bench.length > 0 ? "✓" : "❌"}`);
+}
+
 console.log("\n=== 스쿼드 검증 (등번호 중복·인원) ===");
 {
   const { KOR_2026, KOR_2026_BENCH } = await import("../data/matches");

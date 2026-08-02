@@ -113,7 +113,15 @@ export default function Tutorial() {
    */
   const briefingOpen = useGame((s) => s.briefingOpen);
   useEffect(() => {
-    if (briefingOpen) return;
+    /*
+     * 이미 열려 있으면 **닫는다.** 여는 것만 막았더니 소용이 없었다 —
+     * 첫 렌더에서는 briefingOpen 이 아직 false(스토어 초기값)라 튜토리얼이 먼저 열리고,
+     * 그 다음 프레임에 브리핑이 true로 바꿔도 열린 튜토리얼은 그대로 남았다.
+     */
+    if (briefingOpen) {
+      setOpen(false);
+      return;
+    }
     try {
       if (!localStorage.getItem(SEEN_KEY)) setOpen(true);
     } catch {
