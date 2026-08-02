@@ -107,14 +107,19 @@ export default function Tutorial() {
   const [i, setI] = useState(0);
   const [rect, setRect] = useState<Rect | null>(null);
 
-  // 첫 방문에만 자동 실행
+  /*
+   * 첫 방문에만 자동 실행 — 단, **라운드 브리핑이 닫힌 뒤에** 시작한다.
+   * 둘이 동시에 뜨면 튜토리얼 스포트라이트가 브리핑 모달을 덮어 양쪽 다 못 읽는다.
+   */
+  const briefingOpen = useGame((s) => s.briefingOpen);
   useEffect(() => {
+    if (briefingOpen) return;
     try {
       if (!localStorage.getItem(SEEN_KEY)) setOpen(true);
     } catch {
       /* 프라이빗 모드 등 — 조용히 넘어간다 */
     }
-  }, []);
+  }, [briefingOpen]);
 
   // 외부(도움말 버튼)에서 다시 열 수 있게
   useEffect(() => {

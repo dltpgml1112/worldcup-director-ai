@@ -59,7 +59,15 @@ const OVERLAY_KEYS: { key: keyof OverlayFlags; i18n: string; color: string }[] =
 
 export default function TacticalBoard() {
   const [mode, setMode] = useState<Mode>("3d");
-  const [camKey, setCamKey] = useState<CamKey>("behind");
+  /*
+   * 기본 카메라는 중계 캠이다.
+   *
+   * 이전 기본값이던 '골문 뒤'는 극적이지만 전술을 읽을 수 없다 — 시선 방향으로 선수가
+   * 앞뒤로 겹쳐서 누가 어느 라인에 서 있는지, 간격이 얼마인지가 전부 사라진다.
+   * 중계 캠은 TV에서 늘 보던 각도라 배치가 즉시 읽히고, 3D의 입체감도 살아 있다.
+   * 극적인 앵글이 필요한 순간(골 장면)에는 연출이 따로 카메라를 옮긴다.
+   */
+  const [camKey, setCamKey] = useState<CamKey>("broadcast");
   const [cinematic, setCinematic] = useState(false);
   const [expanded, setExpanded] = useState(false);
   const [overlays, setOverlays] = useState<OverlayFlags>({

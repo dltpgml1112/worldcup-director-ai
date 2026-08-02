@@ -27,12 +27,22 @@ export default function RoundBriefing() {
 
   // 라운드가 바뀌면 브리핑을 다시 연다
   const [dismissed, setDismissed] = useState(false);
-  useEffect(() => setDismissed(false), [roundId, matchId]);
+  useEffect(() => setDismissed(false), [roundId]);
 
   const round = CAMPAIGN_ROUNDS.find((r) => r.id === roundId);
   const match = getMatch(matchId);
+  const isCampaign = matchId.startsWith("campaign-");
+  const showBriefing = isCampaign && !!round && !dismissed && minute === 0 && !eliminated && !champion;
+
+  // 브리핑이 떠 있는 동안에는 튜토리얼이 시작되지 않게 알린다
+  const setBriefingOpen = useGame((s) => s.setBriefingOpen);
+  useEffect(() => {
+    setBriefingOpen(showBriefing);
+    return () => setBriefingOpen(false);
+  }, [showBriefing, setBriefingOpen]);
+
   // 단독 재생(2022·2018 결승 다시보기)에는 캠페인 UI가 뜨지 않는다
-  if (!match || !round || !matchId.startsWith("campaign-")) return null;
+  if (!match || !round || !isCampaign) return null;
 
   /* ── 결말: 탈락 / 우승 ── */
   if (eliminated || champion) {
@@ -77,7 +87,7 @@ export default function RoundBriefing() {
   }
 
   /* ── 경기 전 브리핑 ── */
-  if (dismissed || minute > 0) return null;
+  if (!showBriefing) return null;
 
   const opponent = round.opponent;
   const stage = ko ? round.stageKo : round.stage;

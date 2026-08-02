@@ -1,7 +1,7 @@
 import type { CampaignRound } from "@/lib/campaign";
 import type { Player, Tactics, Team } from "@/lib/types";
 import { DEFAULT_TACTICS } from "@/lib/matchEngine";
-import { RSA_2026, getMatch } from "@/data/matches";
+import { RSA_2026 } from "@/data/matches";
 import { REAL_OPENER_ID } from "@/lib/campaign";
 
 /**
@@ -158,8 +158,9 @@ export const CAMPAIGN_ROUNDS: CampaignRound[] = [
     realContext:
       "Korea went into this match on 3 points, South Africa on 1 — a draw was enough to go through. They had 68% of the ball and 18 shots, but only three on target. South Africa sat deep for an hour, broke once, and Thapelo Maseko finished it in the 63rd minute. Korea went out in third place.",
     realContextKo:
-      "한국은 승점 3, 남아공은 1이었다. **비기기만 해도 16강이었다.** 점유율 68%에 슈팅 18개를 퍼부었지만 유효슈팅은 3개뿐. 남아공은 한 시간을 내려앉아 버티다 딱 한 번 나왔고, 63분 타펠로 마세코가 마무리했다. 한국은 조 3위로 탈락했다.",
+      "한국은 승점 3, 남아공은 1이었다. 비기기만 해도 16강이었다. 점유율 68%에 슈팅 18개를 퍼부었지만 유효슈팅은 3개뿐. 남아공은 한 시간을 내려앉아 버티다 딱 한 번 나왔고, 63분 타펠로 마세코가 마무리했다. 한국은 조 3위로 탈락했다.",
     /** 이 라운드에는 대응하는 실측 경기가 있다 — 브리핑에서 "실제 경기 보기"로 연결된다 */
+    realScoreline: { left: "RSA", right: "KOR", score: [1, 0] },
     realMatchId: REAL_OPENER_ID,
     // 조별리그 — 무승부도 통과
     needsWinner: false,
@@ -181,6 +182,7 @@ export const CAMPAIGN_ROUNDS: CampaignRound[] = [
       "Canada took this slot by beating South Africa 1–0 with a stoppage-time strike from Stephen Eustáquio, reaching the last 16 for the first time in their history. Alphonso Davies watched it from the bench.",
     realContextKo:
       "캐나다는 남아공을 1-0으로 꺾고 이 자리에 왔다. 후반 추가시간 스테번 에우스타키오의 중거리 결승골이었고, 캐나다는 사상 처음으로 16강에 올랐다. 알폰소 데이비스는 벤치에서 그 경기를 지켜봤다.",
+    realScoreline: { left: "CAN", right: "RSA", score: [1, 0] },
   },
   {
     id: "r16",
@@ -199,6 +201,7 @@ export const CAMPAIGN_ROUNDS: CampaignRound[] = [
       "Morocco ended Canada's tournament here, winning 3–0 with two second-half goals from Azzedine Ounahi. Canada were the first co-host to go out.",
     realContextKo:
       "모로코는 이 자리에서 캐나다의 대회를 끝냈다. 3-0 완승이었고 후반에만 아제딘 오나히가 두 골을 넣었다. 캐나다는 개최국 중 가장 먼저 탈락한 팀이 됐다.",
+    realScoreline: { left: "MAR", right: "CAN", score: [3, 0] },
   },
   {
     id: "qf",
@@ -217,6 +220,7 @@ export const CAMPAIGN_ROUNDS: CampaignRound[] = [
       "France beat Morocco 3–1 here — a rematch of the 2022 semi-final. Mbappé led a front line that also carried Dembélé and Olise.",
     realContextKo:
       "프랑스가 이 자리에서 모로코를 3-1로 꺾었다. 2022 4강의 리턴 매치였다. 음바페가 이끄는 전방에 뎀벨레와 올리세까지 붙어 있었다.",
+    realScoreline: { left: "FRA", right: "MAR", score: [3, 1] },
   },
   {
     id: "sf",
@@ -234,7 +238,8 @@ export const CAMPAIGN_ROUNDS: CampaignRound[] = [
     realContext:
       "Spain beat France 2–0 here and went on to win the tournament. Rodri controlled midfield; Lamine Yamal started every knockout match. This is the team that lifted the trophy.",
     realContextKo:
-      "스페인이 이 자리에서 프랑스를 2-0으로 꺾고 결승에 올라 우승했다. 로드리가 중원을 지배했고 라민 야말은 토너먼트 전 경기를 선발로 뛰었다. **이 대회의 우승팀이다.**",
+      "스페인이 이 자리에서 프랑스를 2-0으로 꺾고 결승에 올라 우승했다. 로드리가 중원을 지배했고 라민 야말은 토너먼트 전 경기를 선발로 뛰었다. 이 대회의 우승팀이다.",
+    realScoreline: { left: "ESP", right: "FRA", score: [2, 0] },
   },
   {
     id: "final",
@@ -253,5 +258,6 @@ export const CAMPAIGN_ROUNDS: CampaignRound[] = [
       "The defending champions reached the final and lost it 0–1 to Spain in extra time, Ferran Torres scoring off the bench. Messi started. If you are here, you are playing the match Argentina lost.",
     realContextKo:
       "디펜딩 챔피언 아르헨티나가 결승에 올랐고, 연장에서 교체 투입된 페란 토레스에게 실점하며 0-1로 졌다. 메시가 선발로 나섰다. 당신이 여기까지 왔다면, 아르헨티나가 졌던 그 경기를 대신 치르는 것이다.",
+    realScoreline: { left: "ESP", right: "ARG", score: [1, 0] },
   },
 ];

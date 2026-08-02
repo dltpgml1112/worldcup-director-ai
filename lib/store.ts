@@ -55,6 +55,15 @@ interface GameState {
   setSelectedPlayer: (id: string | null) => void;
 
   /**
+   * 라운드 브리핑이 떠 있는가.
+   *
+   * 튜토리얼과 브리핑이 동시에 뜨면 스포트라이트가 브리핑 모달을 덮어 둘 다 못 읽는다.
+   * 브리핑이 먼저고, 튜토리얼은 그게 닫힌 뒤에 시작한다.
+   */
+  briefingOpen: boolean;
+  setBriefingOpen: (v: boolean) => void;
+
+  /**
    * 감독이 직접 옮긴 선수들.
    * 이 선수들은 전술 슬라이더의 배치 변형을 받지 않고 놓은 자리를 지킨다 —
    * "내 마음대로 배치"가 성립하려면 수동 배치가 자동 계산보다 우선해야 한다.
@@ -261,6 +270,9 @@ export const useGame = create<GameState>((set, get) => ({
   campaignResults: [],
   eliminated: false,
   champion: false,
+
+  briefingOpen: false,
+  setBriefingOpen: (briefingOpen) => set({ briefingOpen }),
 
   setSelectedPlayer: (selectedPlayer) => set({ selectedPlayer }),
   clearManualPositions: () => set({ manualPositions: [] }),

@@ -30,6 +30,14 @@ export interface CampaignRound {
   realContext: string;
   realContextKo: string;
   /**
+   * 이 자리에서 **실제로 나온 스코어**. 공식 기록 순서(홈이 왼쪽)로 적는다.
+   *
+   * 캠페인 경기의 `finalScore` 는 이번 판의 시뮬레이션 결과지 역사가 아니다.
+   * 32강부터는 한국이 없던 경기라 "한국 몇 대 몇"으로 환산할 수도 없다
+   * (그 자리의 실제 경기는 캐나다 1-0 남아공이었다). 그래서 팀 코드와 함께 따로 싣는다.
+   */
+  realScoreline: { left: string; right: string; score: [number, number] };
+  /**
    * 이 라운드에 대응하는 실측 경기가 MATCHES에 있으면 그 id.
    * 남아공전만 해당한다 — 실제로 열린 경기라 원본을 그대로 다시 볼 수 있다.
    */
