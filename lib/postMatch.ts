@@ -116,6 +116,31 @@ export function buildReport(
 
   const homeName = ko ? match.home.nameKo : match.home.name;
   const oppName = ko ? match.away.nameKo : match.away.name;
+
+  /*
+   * 캠페인 맥락 — "4강 스페인전"과 "친선경기"는 같은 2-1이어도 무게가 다르다.
+   * 라운드와 진출 여부를 총평 맨 앞에 세운다. 경기 데이터가 이미 라운드를 들고 있어서
+   * (stage/stageKo) 별도 인자 없이 판단할 수 있다.
+   */
+  const isCampaign = match.id.startsWith("campaign-");
+  const roundLabel = (ko ? match.stageKo : match.stage) ?? match.stage;
+  const isFinalRound = /final/i.test(match.stage) && !/quarter|semi/i.test(match.stage);
+  const throughByPens = match.penalties ? match.penalties[0] > match.penalties[1] : false;
+  const wentThrough = match.finalScore[0] > match.finalScore[1] || throughByPens;
+
+  const stakeLine = !isCampaign
+    ? ""
+    : ko
+    ? wentThrough
+      ? isFinalRound
+        ? `${roundLabel}에서 이겼다. 대한민국이 세계 챔피언이다. `
+        : `${roundLabel} 통과. `
+      : `${roundLabel}에서 멈췄다. `
+    : wentThrough
+    ? isFinalRound
+      ? `${roundLabel} won. Korea are world champions. `
+      : `Through the ${roundLabel}. `
+    : `Stopped in the ${roundLabel}. `;
   const realChanged =
     alt.score[0] !== match.finalScore[0] || alt.score[1] !== match.finalScore[1];
   const realStr = `${match.finalScore[0]}–${match.finalScore[1]}`;
@@ -126,6 +151,7 @@ export function buildReport(
   if (ko) {
     const resultWord = won ? "이기고" : drew ? "비기며" : "패해";
     verdict =
+      stakeLine +
       `등급 ${grade}. ${homeName}을(를) 이끈 ${coachName} 감독은 ${oppName}을(를) 상대로 ${ug}–${og}으로 ${resultWord} ` +
       `예상 승률 ${alt.homeWinProb}%를 기록했다. ` +
       (realChanged
@@ -133,7 +159,11 @@ export function buildReport(
         : `스코어는 실제와 같지만, 그 과정은 온전히 당신의 것이었다.`) +
       ` ${motm.name}이(가) 승부를 갈랐다.`;
     headlines = [
-      won
+      isCampaign && wentThrough && isFinalRound
+        ? `${homeName}, 월드컵을 들어올리다 — ${coachName} 감독의 대관식`
+        : isCampaign && wentThrough
+        ? `${homeName} ${roundLabel} 돌파 — ${coachName} 감독이 역사를 다시 썼다`
+        : won
         ? `${coachName} 감독의 ${homeName}, 세계를 놀라게 하다`
         : drew
         ? `${homeName}, 값진 승점 1점 — ${coachName} 감독의 뚝심`
@@ -146,6 +176,7 @@ export function buildReport(
   } else {
     const resultWord = won ? "beat" : drew ? "drew with" : "fell to";
     verdict =
+      stakeLine +
       `Grade ${grade}. Directing ${homeName}, ${coachName} ${resultWord} ${oppName} ${ug}–${og} ` +
       `on a projected ${alt.homeWinProb}% win probability. ` +
       (realChanged

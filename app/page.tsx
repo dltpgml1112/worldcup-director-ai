@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
@@ -18,8 +18,9 @@ import LangToggle from "@/components/LangToggle";
 import { MATCHES, getMatch } from "@/data/matches";
 import { CAMPAIGN_ROUNDS } from "@/data/wc2026";
 import { REAL_OPENER_ID } from "@/lib/campaign";
-import { useGame } from "@/lib/store";
+import { useGame, loadCampaign } from "@/lib/store";
 import { sourceBadge } from "@/lib/provenance";
+import { orientFixture, orientedScore } from "@/lib/fixture";
 import { t, stageLabel } from "@/lib/i18n";
 
 /**
@@ -31,9 +32,23 @@ import { t, stageLabel } from "@/lib/i18n";
 export default function Home() {
   const router = useRouter();
   const setup = useGame((s) => s.setup);
+  const resumeCampaign = useGame((s) => s.resumeCampaign);
   const lang = useGame((s) => s.lang);
   const [name, setName] = useState("");
   const ko = lang === "ko";
+
+  /*
+   * 저장된 캠페인 확인은 마운트 후에 한다 — localStorage는 서버에 없어서
+   * 렌더 중에 읽으면 SSR 결과와 클라이언트가 어긋난다(hydration mismatch).
+   */
+  const [saved, setSaved] = useState<ReturnType<typeof loadCampaign>>(null);
+  useEffect(() => setSaved(loadCampaign()), []);
+
+  const savedRound = saved && CAMPAIGN_ROUNDS.find((r) => r.id === saved.roundId);
+
+  const resume = () => {
+    if (resumeCampaign()) router.push("/match");
+  };
 
   const opener = getMatch(REAL_OPENER_ID);
   const coach = () => name.trim() || (ko ? "감독" : "Coach");
@@ -95,6 +110,31 @@ export default function Home() {
             className="mb-5 w-full rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-lg outline-none focus:border-neon-grass"
           />
 
+          {/* ── 이어하기 — 진행 중인 캠페인이 있으면 맨 위에 ── */}
+          {savedRound && !saved?.champion && (
+            <button
+              onClick={resume}
+              className="mb-4 flex w-full items-center justify-between gap-3 rounded-2xl border border-neon-grass/40 bg-neon-grass/10 px-4 py-3 text-left transition hover:bg-neon-grass/15"
+            >
+              <span className="min-w-0">
+                <span className="block text-[10px] font-semibold uppercase tracking-widest text-neon-grass">
+                  {ko ? "진행 중인 캠페인" : "Campaign in progress"}
+                </span>
+                <span className="block truncate text-sm text-white/80">
+                  {savedRound.opponent.flag} {ko ? savedRound.stageKo : savedRound.stage} ·{" "}
+                  {ko ? savedRound.opponent.nameKo : savedRound.opponent.name}
+                  {saved && saved.campaignResults.length > 0 && (
+                    <span className="text-white/50">
+                      {" "}
+                      · {ko ? `${saved.campaignResults.length}경기 완료` : `${saved.campaignResults.length} played`}
+                    </span>
+                  )}
+                </span>
+              </span>
+              <span className="chip shrink-0 bg-neon-grass/20 text-neon-grass">{ko ? "이어하기" : "Resume"}</span>
+            </button>
+          )}
+
           {/* ── 캠페인 브리핑 ── */}
           {opener && (
             <div className="rounded-2xl border border-team-home/40 bg-team-home/10 p-4">
@@ -105,10 +145,13 @@ export default function Home() {
                 <span className={`chip ${sourceBadge("real").cls}`}>{t(lang, sourceBadge("real").key)}</span>
               </div>
 
+              {/* 공식 기록 순서 — 실제 홈이었던 남아공이 왼쪽 */}
               <div className="mt-3 flex items-center justify-center gap-3">
-                <span className="text-3xl">🇰🇷</span>
-                <span className="metric-num font-display text-2xl font-bold text-white/50">0–1</span>
-                <span className="text-3xl">🇿🇦</span>
+                <span className="text-3xl">{orientFixture(opener, opener.home, opener.away).left.flag}</span>
+                <span className="metric-num font-display text-2xl font-bold text-white/50">
+                  {orientedScore(opener, opener.finalScore).join("–")}
+                </span>
+                <span className="text-3xl">{orientFixture(opener, opener.home, opener.away).right.flag}</span>
               </div>
 
               <p className="mt-3 text-sm leading-relaxed text-white/70">
@@ -136,7 +179,9 @@ export default function Home() {
 
               <motion.button whileTap={{ scale: 0.98 }} onClick={startCampaign} className="btn-primary mt-4 w-full !py-3">
                 <span className="relative z-10">
-                  {ko ? "내 월드컵을 시작한다" : "Start my World Cup"}
+                  {savedRound
+                    ? ko ? "처음부터 새로 시작" : "Start over"
+                    : ko ? "내 월드컵을 시작한다" : "Start my World Cup"}
                 </span>
               </motion.button>
             </div>
@@ -154,11 +199,9 @@ export default function Home() {
                   onClick={() => startReplay(m.id)}
                   className="flex items-center gap-2 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-sm text-white/70 transition hover:bg-white/10"
                 >
-                  <span>{m.home.flag}</span>
-                  <span className="metric-num font-semibold">
-                    {m.finalScore[0]}–{m.finalScore[1]}
-                  </span>
-                  <span>{m.away.flag}</span>
+                  <span>{orientFixture(m, m.home, m.away).left.flag}</span>
+                  <span className="metric-num font-semibold">{orientedScore(m, m.finalScore).join("–")}</span>
+                  <span>{orientFixture(m, m.home, m.away).right.flag}</span>
                   <span className="text-white/40">
                     {m.year} {stageLabel(lang, m.stage, m.stageKo)}
                   </span>

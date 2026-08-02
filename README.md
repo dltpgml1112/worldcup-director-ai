@@ -79,7 +79,11 @@ npm run build    # production build
   campaign briefing, and a replay list of the real matches.
 - **Campaign ("Rewriting 2026")** — six rounds from the group decider to the final, every opponent
   taken from the real 2026 bracket. Win to advance, lose and it ends exactly as history did.
-  Knockout draws go to extra time and penalties.
+  Knockout draws go to extra time and penalties. Progress is saved locally, so a refresh in the
+  semi-final doesn't cost you the run.
+- **In-match tactical changes** — change your setup mid-game and re-run from that minute: everything
+  already played stays fixed, only what's left is regenerated. Switching to all-out attack at 60'
+  raises expected goals for the remaining half-hour from 0.51 to 0.76.
 - **Match engine** — minute-by-minute timeline, play/pause/scrub, 1–12× speed, live score, xG,
   possession, shots, corners, momentum, **live win-probability graph**, goal celebration overlay.
 - **Scoreline model** — expected goals are turned into a **full Poisson joint distribution**; the app
@@ -143,7 +147,8 @@ Matches that never took place are generated at runtime by `lib/simulateMatch.ts`
 ```bash
 npx tsx scripts/check-scoreline.mts   # 전술별 최빈 스코어·승무패 확률
 npx tsx scripts/check-sim.mts         # 스코어 분포 200경기 · 결정론 검사
-npx tsx scripts/check-campaign.mts    # 캠페인 완주 · 탈락 경로 · 대진 검증
+npx tsx scripts/check-campaign.mts    # 캠페인 완주 · 탈락 경로 · 대진 · 등번호 검증
+npx tsx scripts/check-midmatch.mts    # 경기 중 전술 변경 — 과거 보존 · 이후 변화
 ```
 
 ## Architecture

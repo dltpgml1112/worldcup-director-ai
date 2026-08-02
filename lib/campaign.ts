@@ -1,4 +1,4 @@
-import type { MatchData, Player, Tactics, Team } from "./types";
+import type { MatchData, MatchEvent, Player, Tactics, Team } from "./types";
 import { simulateTimeline } from "./simulateMatch";
 
 /**
@@ -89,20 +89,32 @@ export function buildRoundMatch(params: {
   koreaBench: Player[];
   koreaShape: string;
   tactics: Tactics;
+  /** 경기 도중 전술을 바꾼 경우 — 여기까지는 그대로 두고 이후만 다시 만든다 */
+  carryOver?: { events: MatchEvent[]; fromMinute: number };
+  /**
+   * 같은 라운드를 다시 만들 때 붙이는 꼬리표.
+   *
+   * 내용만 바꾸고 id를 그대로 두면, 화면 곳곳의 `getMatch(matchId)` 호출부가
+   * matchId 변화를 못 느껴 옛 경기를 계속 그린다. id를 바꾸면 전부 자연히 다시 그려진다.
+   */
+  revision?: number;
 }): MatchData {
-  const { round, korea, koreaXI, koreaBench, koreaShape, tactics } = params;
+  const { round, korea, koreaXI, koreaBench, koreaShape, tactics, carryOver, revision = 0 } = params;
+  const matchId = revision ? `campaign-${round.id}@${revision}` : `campaign-${round.id}`;
 
   const sim = simulateTimeline({
+    // 시드는 라운드 기준으로 고정한다 — revision은 carryOver의 fromMinute이 이미 반영한다
     matchId: `campaign-${round.id}`,
     homeXI: koreaXI,
     awayXI: round.opponentXI,
     homeTactics: tactics,
     awayTactics: round.opponentTactics,
     needsWinner: round.needsWinner !== false,
+    carryOver,
   });
 
   return {
-    id: `campaign-${round.id}`,
+    id: matchId,
     year: 2026,
     stage: round.stage,
     stageKo: round.stageKo,

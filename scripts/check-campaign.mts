@@ -94,6 +94,31 @@ console.log(`A조 3차전 결과 ${opener.finalScore[0]}-${opener.finalScore[1]}
 s().finishRound();
 console.log(`탈락 처리: ${s().eliminated ? "OK" : "안 됨 (다음 라운드로 넘어감)"}`);
 
+console.log("\n=== 스쿼드 검증 (등번호 중복·인원) ===");
+{
+  const { KOR_2026, KOR_2026_BENCH } = await import("../data/matches");
+  const squad = [...KOR_2026, ...KOR_2026_BENCH];
+  const seen = new Map<number, string[]>();
+  for (const p of squad) {
+    seen.set(p.num, [...(seen.get(p.num) ?? []), `${p.nameKo ?? p.name}${p.legend ? "(레전드)" : ""}`]);
+  }
+  const dupes = [...seen.entries()].filter(([, names]) => names.length > 1);
+  console.log(`  한국 선발 ${KOR_2026.length} + 벤치 ${KOR_2026_BENCH.length}`);
+  if (dupes.length) {
+    for (const [num, names] of dupes) console.log(`  ⚠️ ${num}번 중복: ${names.join(", ")}`);
+  } else {
+    console.log("  등번호 중복 없음 ✓");
+  }
+
+  for (const r of CAMPAIGN_ROUNDS) {
+    const nums = r.opponentXI.map((p) => p.num);
+    const dup = nums.filter((n, i) => nums.indexOf(n) !== i);
+    if (r.opponentXI.length !== 11 || dup.length) {
+      console.log(`  ⚠️ ${r.stageKo} ${r.opponent.nameKo}: ${r.opponentXI.length}명, 중복번호 ${dup.join(",")}`);
+    }
+  }
+}
+
 console.log("\n=== 대진 검증 ===");
 CAMPAIGN_ROUNDS.forEach((r) => {
   console.log(`  ${r.stageKo.padEnd(5)} ${r.opponent.flag} ${r.opponent.nameKo.padEnd(8)} 선발 ${r.opponentXI.length}명 (${r.opponentShape})`);

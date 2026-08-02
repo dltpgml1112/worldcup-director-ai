@@ -69,6 +69,8 @@ interface GameState {
    * 32강부터는 CAMPAIGN_ROUNDS의 id가 들어간다.
    */
   roundId: string | null;
+  /** 같은 라운드를 다시 만든 횟수 — matchId 꼬리표로 쓰여 화면 갱신을 보장한다 */
+  matchRevision: number;
   campaignResults: RoundResult[];
   /** 탈락 여부 — 진 순간 캠페인이 끝난다 (실제 역사대로) */
   eliminated: boolean;
@@ -80,6 +82,13 @@ interface GameState {
   replayRound: () => void;
   /** 캠페인을 처음부터 */
   resetCampaign: () => void;
+  /** 저장된 캠페인 이어하기. 저장본이 없으면 false */
+  resumeCampaign: () => boolean;
+  /**
+   * 지금 전술을 **남은 시간에** 적용한다. 지나간 이벤트는 그대로 두고 이후만 다시 만든다.
+   * 슬라이더를 움직일 때마다 돌리면 재생 중 화면이 요동치므로 버튼으로 명시 실행한다.
+   */
+  applyTacticsNow: () => void;
 
   setLang: (l: Lang) => void;
   setLegendMode: (v: boolean) => void;
@@ -109,6 +118,77 @@ const MAX_SUBS = 5;
 
 /** 남아공전에서 한국이 실제로 쓴 대형 */
 const KOREA_SHAPE = "3-4-3";
+
+/* ───────────────────────── 캠페인 저장 ───────────────────────── */
+
+const SAVE_KEY = "wcd-campaign-v1";
+
+interface SavedCampaign {
+  coachName: string;
+  roundId: string;
+  campaignResults: RoundResult[];
+  eliminated: boolean;
+  champion: boolean;
+  tactics: Tactics;
+  formation: FormationKey;
+}
+
+/**
+ * 캠페인 진행을 브라우저에 남긴다.
+ *
+ * 4강까지 올라간 사람이 새로고침 한 번에 처음으로 돌아가면 그걸로 끝이다.
+ * 저장하는 것은 **어디까지 왔는지와 어떤 전술이었는지**뿐이다. 경기 타임라인은
+ * 저장하지 않는다 — 전술·라인업만 있으면 결정론적으로 똑같이 재생성되기 때문이다
+ * (lib/simulateMatch.ts). 저장 용량도 작고, 엔진을 고쳐도 옛 기록이 깨지지 않는다.
+ */
+function saveCampaign(s: {
+  coachName: string;
+  roundId: string | null;
+  campaignResults: RoundResult[];
+  eliminated: boolean;
+  champion: boolean;
+  tactics: Tactics;
+  formation: FormationKey;
+}) {
+  if (typeof window === "undefined" || !s.roundId) return;
+  try {
+    const data: SavedCampaign = {
+      coachName: s.coachName,
+      roundId: s.roundId,
+      campaignResults: s.campaignResults,
+      eliminated: s.eliminated,
+      champion: s.champion,
+      tactics: s.tactics,
+      formation: s.formation,
+    };
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(data));
+  } catch {
+    // 사생활 보호 모드 등으로 저장이 막혀도 게임은 계속돼야 한다
+  }
+}
+
+export function loadCampaign(): SavedCampaign | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = window.localStorage.getItem(SAVE_KEY);
+    if (!raw) return null;
+    const data = JSON.parse(raw) as SavedCampaign;
+    // 라운드 id가 지금 브래킷에 없으면(데이터 개편 등) 버린다
+    if (!CAMPAIGN_ROUNDS.some((r) => r.id === data.roundId)) return null;
+    return data;
+  } catch {
+    return null;
+  }
+}
+
+export function clearCampaign() {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.removeItem(SAVE_KEY);
+  } catch {
+    /* 무시 */
+  }
+}
 
 /** 라운드 순서: A조 3차전 → 32강 → 16강 → 8강 → 4강 → 결승 */
 function nextRoundId(current: string | null): string | null {
@@ -143,6 +223,7 @@ function loadRound(roundId: string, tactics: Tactics, xiOverride?: Player[]) {
 
   return {
     roundId: round.id,
+    matchRevision: 0,
     matchId,
     players: baseXI.map((p) => ({ ...p, onAt: 0, stamina: 100 })),
     bench: baseBench.map((p) => ({ ...p })),
@@ -176,6 +257,7 @@ export const useGame = create<GameState>((set, get) => ({
   manualPositions: [],
 
   roundId: null,
+  matchRevision: 0,
   campaignResults: [],
   eliminated: false,
   champion: false,
@@ -189,7 +271,7 @@ export const useGame = create<GameState>((set, get) => ({
    * 지면 캠페인이 거기서 끝난다 — 그게 실제로 일어난 일이기 때문이다. 다만 감독에게는
    * replayRound()가 있어서, 전술을 바꿔 같은 경기를 다시 치를 수 있다.
    */
-  finishRound: () =>
+  finishRound: () => {
     set((s) => {
       const match = getMatch(s.matchId);
       const round = CAMPAIGN_ROUNDS.find((r) => r.id === s.roundId);
@@ -212,24 +294,71 @@ export const useGame = create<GameState>((set, get) => ({
       if (next === null) return { campaignResults: results, champion: true };
 
       return { campaignResults: results, ...loadRound(next, s.tactics) };
-    }),
+    });
+    saveCampaign(get());
+  },
 
-  replayRound: () =>
+  replayRound: () => {
     set((s) => {
       if (!s.roundId) return {} as Partial<GameState>;
       // 감독이 옮겨놓은 배치 그대로 다시 뛴다 — 그게 '전술을 바꿔 재도전'의 의미다
       return { ...loadRound(s.roundId, s.tactics, s.players), eliminated: false };
-    }),
+    });
+    saveCampaign(get());
+  },
 
-  resetCampaign: () =>
+  resetCampaign: () => {
     set((s) => ({
       ...loadRound(FIRST_ROUND_ID, s.tactics),
       campaignResults: [],
       eliminated: false,
       champion: false,
       tactics: { ...DEFAULT_TACTICS },
-      formation: "433",
-    })),
+      formation: "343",
+    }));
+    clearCampaign();
+  },
+
+  applyTacticsNow: () => {
+    const s = get();
+    const round = CAMPAIGN_ROUNDS.find((r) => r.id === s.roundId);
+    const current = getMatch(s.matchId);
+    if (!round || !current || s.minute <= 0) return;
+
+    const match = buildRoundMatch({
+      round,
+      korea: KOREA,
+      koreaXI: s.players,
+      koreaBench: s.bench,
+      koreaShape: KOREA_SHAPE,
+      tactics: s.tactics,
+      carryOver: { events: current.timeline, fromMinute: s.minute },
+      // id를 바꿔야 화면 곳곳의 getMatch(matchId)가 새 경기를 집는다
+      revision: s.matchRevision + 1,
+    });
+    registerMatch(match);
+    set({ matchId: match.id, matchRevision: s.matchRevision + 1, playing: false });
+    saveCampaign(get());
+  },
+
+  /**
+   * 저장된 캠페인을 이어서 한다.
+   * 타임라인은 저장하지 않고 전술·라인업으로 재생성한다 — 결정론이라 같은 경기가 나온다.
+   */
+  resumeCampaign: () => {
+    const saved = loadCampaign();
+    if (!saved) return false;
+    set({
+      coachName: saved.coachName,
+      campaignResults: saved.campaignResults,
+      eliminated: saved.eliminated,
+      champion: saved.champion,
+      tactics: saved.tactics,
+      formation: saved.formation,
+      ...loadRound(saved.roundId, saved.tactics),
+    });
+    return true;
+  },
 
   setLang: (lang) => set({ lang }),
 
@@ -271,6 +400,7 @@ export const useGame = create<GameState>((set, get) => ({
         formation: "343",
         tactics: { ...DEFAULT_TACTICS },
       });
+      saveCampaign(get());
       return;
     }
 

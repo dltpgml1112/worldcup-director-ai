@@ -201,6 +201,13 @@ interface SimInput {
   awayTactics: Tactics;
   /** 무승부로 끝날 수 없는 경기(토너먼트)면 연장·승부차기까지 간다 */
   needsWinner?: boolean;
+  /**
+   * 경기 도중 전술을 바꿨을 때 — 이미 지나간 이벤트는 그대로 두고 **남은 분만** 다시 만든다.
+   *
+   * 감독이 60분에 전술을 바꿨는데 이미 넣은 골이 사라지면 그건 다른 경기다.
+   * 지난 것은 역사고, 바꿀 수 있는 것은 앞으로뿐이다.
+   */
+  carryOver?: { events: MatchEvent[]; fromMinute: number };
 }
 
 export interface SimResult {
@@ -218,7 +225,15 @@ export interface SimResult {
  * 슛이 골을 만들어버려서 스코어를 통제할 수 없다 — 재생 프로그램에서는 기록이 먼저다.
  */
 export function simulateTimeline(input: SimInput): SimResult {
-  const { matchId, homeXI, awayXI, homeTactics, awayTactics, needsWinner = false } = input;
+  const { matchId, homeXI, awayXI, homeTactics, awayTactics, needsWinner = false, carryOver } = input;
+
+  // 이어받는 구간 — 여기까지는 손대지 않는다
+  const from = carryOver ? Math.max(0, Math.min(89, carryOver.fromMinute)) : 0;
+  const kept = carryOver ? carryOver.events.filter((e) => e.minute <= from && e.type !== "whistle") : [];
+  const keptGoals = { home: 0, away: 0 };
+  for (const e of kept) if (e.type === "goal") keptGoals[e.side]++;
+  /** 남은 시간 비율 — 60분에 바꿨으면 남은 30분치만 생성한다 */
+  const remain = (90 - from) / 90;
 
   /*
    * 시드는 경기 + 양 팀 전술 + 선발에서 뽑는다.
@@ -226,6 +241,7 @@ export function simulateTimeline(input: SimInput): SimResult {
    */
   const seed = hashSeed(
     matchId,
+    from, // 같은 전술이라도 몇 분에 바꿨는지가 다르면 다른 전개가 된다
     JSON.stringify(homeTactics),
     JSON.stringify(awayTactics),
     homeXI.map((p) => `${p.id}:${p.rating}`).join(","),
@@ -236,11 +252,12 @@ export function simulateTimeline(input: SimInput): SimResult {
   const lambdaHome = expectedGoalsFor(homeXI, awayXI, homeTactics, awayTactics);
   const lambdaAway = expectedGoalsFor(awayXI, homeXI, awayTactics, homeTactics);
 
-  let hg = poissonSample(lambdaHome, rnd);
-  let ag = poissonSample(lambdaAway, rnd);
+  // 남은 시간분의 기대득점만 새로 뽑고, 이미 넣은 골은 그대로 더한다
+  let hg = keptGoals.home + poissonSample(lambdaHome * remain, rnd);
+  let ag = keptGoals.away + poissonSample(lambdaAway * remain, rnd);
 
-  const taken = new Set<number>([45, 90]);
-  const events: MatchEvent[] = [];
+  const taken = new Set<number>([45, 90, ...kept.map((e) => e.minute)]);
+  const events: MatchEvent[] = [...kept];
 
   /** 골 이벤트를 만들고 누적 스코어를 붙인다 */
   const goalEvents = (side: Side, minutes: number[], xi: Player[]) => {
@@ -261,14 +278,15 @@ export function simulateTimeline(input: SimInput): SimResult {
     }
   };
 
-  goalEvents("home", spreadMinutes(hg, 1, 90, rnd, taken), homeXI);
-  goalEvents("away", spreadMinutes(ag, 1, 90, rnd, taken), awayXI);
+  // 새로 만드는 이벤트는 전부 `from` 이후 구간에만 놓는다
+  goalEvents("home", spreadMinutes(hg - keptGoals.home, from, 90, rnd, taken), homeXI);
+  goalEvents("away", spreadMinutes(ag - keptGoals.away, from, 90, rnd, taken), awayXI);
 
   /* ── 슛·기회·코너: 기대득점에 비례한 양 ── */
   const fill = (side: Side, lambda: number, goals: number) => {
-    const shots = Math.max(goals, Math.round(lambda * 6 + rnd() * 4));
-    const corners = Math.round(2 + lambda * 2 + rnd() * 2);
-    for (const m of spreadMinutes(shots, 1, 90, rnd, taken)) {
+    const shots = Math.max(goals, Math.round((lambda * 6 + rnd() * 4) * remain));
+    const corners = Math.round((2 + lambda * 2 + rnd() * 2) * remain);
+    for (const m of spreadMinutes(shots, from, 90, rnd, taken)) {
       const onTarget = rnd() < 0.38;
       events.push({
         minute: m,
@@ -279,18 +297,18 @@ export function simulateTimeline(input: SimInput): SimResult {
         detailKo: onTarget ? KO.shotOn : KO.shot,
       });
     }
-    for (const m of spreadMinutes(corners, 1, 90, rnd, taken)) {
+    for (const m of spreadMinutes(corners, from, 90, rnd, taken)) {
       events.push({ minute: m, side, type: "corner", detail: "Corner", detailKo: KO.corner });
     }
   };
-  fill("home", lambdaHome, hg);
-  fill("away", lambdaAway, ag);
+  fill("home", lambdaHome, hg - keptGoals.home);
+  fill("away", lambdaAway, ag - keptGoals.away);
 
   /* ── 경고: 압박이 강할수록 늘어난다 ── */
   const cards = (side: Side, xi: Player[], tactics: Tactics) => {
-    const n = Math.round(rnd() * 2 + tactics.press / 60);
+    const n = Math.round((rnd() * 2 + tactics.press / 60) * remain);
     const outfield = xi.filter((p) => group(p.role) !== "GK");
-    for (const m of spreadMinutes(n, 15, 90, rnd, taken)) {
+    for (const m of spreadMinutes(n, Math.max(15, from), 90, rnd, taken)) {
       const p = outfield[Math.floor(rnd() * outfield.length)];
       if (!p) continue;
       events.push({
@@ -345,11 +363,16 @@ export function simulateTimeline(input: SimInput): SimResult {
    * xg 재배분 — 각 팀 이벤트의 xg 합이 그 팀의 λ와 정확히 일치하게 맞춘다.
    * 이걸 안 하면 화면의 xG 지표와 실제로 나온 골 수가 서로 다른 이야기를 한다.
    */
+  const keptSet = new Set(kept);
   for (const side of ["home", "away"] as Side[]) {
-    const target = side === "home" ? lambdaHome : lambdaAway;
-    const own = events.filter((e) => e.side === side && (e.type === "goal" || e.type === "shot"));
-    const sum = own.reduce((a, e) => a + (e.xg ?? 0), 0);
-    if (sum > 0) for (const e of own) e.xg = Number(((e.xg ?? 0) * (target / sum)).toFixed(3));
+    // 이미 지나간 이벤트의 xG는 건드리지 않는다 — 그건 이미 일어난 일이다.
+    // 새로 만든 구간만 '남은 시간분의 λ'에 맞춘다.
+    const fresh = events.filter(
+      (e) => e.side === side && (e.type === "goal" || e.type === "shot") && !keptSet.has(e)
+    );
+    const target = (side === "home" ? lambdaHome : lambdaAway) * remain;
+    const sum = fresh.reduce((a, e) => a + (e.xg ?? 0), 0);
+    if (sum > 0) for (const e of fresh) e.xg = Number(((e.xg ?? 0) * (target / sum)).toFixed(3));
   }
 
   // 골 이벤트 문구에 누적 스코어를 붙인다 (이벤트 피드에서 흐름이 읽혀야 한다)

@@ -33,6 +33,49 @@ export function coachTips(
   const ko = lang === "ko";
   const opp = ko ? match.away.nameKo : match.away.name;
 
+  /*
+   * 0) 이 경기에 무엇이 걸렸는가.
+   *
+   * 같은 2-1도 8강이냐 조별리그냐에 따라 감독의 판단이 달라진다. 토너먼트는 비기면
+   * 연장·승부차기라 "지지만 않으면 된다"가 성립하지 않는다 — 그걸 먼저 말해준다.
+   */
+  if (match.id.startsWith("campaign-")) {
+    const round = (ko ? match.stageKo : match.stage) ?? match.stage;
+    const isFinalRound = /final/i.test(match.stage) && !/quarter|semi/i.test(match.stage);
+    const groupStage = /group/i.test(match.stage);
+    tips.push({
+      id: "stake",
+      headline: ko
+        ? isFinalRound
+          ? `결승이다. ${opp}만 넘으면 우승이다.`
+          : groupStage
+          ? `${round} — 비기기만 해도 16강이다.`
+          : `${round} — 이기면 다음 라운드, 비기면 연장·승부차기다.`
+        : isFinalRound
+        ? `The final. Beat ${opp} and it's yours.`
+        : groupStage
+        ? `${round} — a draw is enough to go through.`
+        : `${round} — win to advance; a draw means extra time and penalties.`,
+      reason: ko
+        ? groupStage
+          ? "승점 3의 한국, 1의 남아공. 무승부면 조 2위로 통과한다. 무리한 공격이 오히려 역습을 부른다."
+          : diff === 0
+          ? "동점으로 끝나면 연장 30분과 승부차기다. 체력 관리를 교체 계획에 반영하라."
+          : diff > 0
+          ? "앞서 있다. 남은 시간 관리와 실점 위험 사이에서 선택하라."
+          : "뒤지고 있다. 토너먼트에서는 무승부도 탈락이 아니지만, 지고 있으면 시간이 적이다."
+        : groupStage
+        ? "Korea on 3 points, South Africa on 1 — a draw sends you through. Over-committing invites the counter."
+        : diff === 0
+        ? "Level means 30 minutes of extra time and penalties. Factor that into your substitutions."
+        : diff > 0
+        ? "You're ahead — balance game management against the risk of conceding."
+        : "You're behind, and in a knockout the clock is the opponent.",
+      confidence: 92,
+      severity: diff < 0 ? "warning" : "info",
+    });
+  }
+
   // 1) 상대 약점 사이드 공략
   tips.push({
     id: "weak-flank",

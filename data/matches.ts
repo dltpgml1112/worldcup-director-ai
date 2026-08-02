@@ -123,10 +123,13 @@ export const KOR_2026_BENCH = buildBench("kor26", [
 
   // ⭐ 이하 legend: true — 역대 대표팀 스타. 실제 2026 스쿼드가 아닌 가상 편성이므로
   // '레전드 모드'가 켜졌을 때만 벤치에 노출된다 (기본 OFF = 현역 선수만).
-  { name: "Cha Bum-kun", nameKo: "차범근", num: 12, role: "ST", rating: 90, legend: true },
-  { name: "Park Ji-sung", nameKo: "박지성", num: 13, role: "CM", rating: 88, legend: true },
-  { name: "Ahn Jung-hwan", nameKo: "안정환", num: 24, role: "ST", rating: 85, legend: true },
-  { name: "Lee Chung-yong", nameKo: "이청용", num: 14, role: "RW", rating: 83, legend: true },
+  //
+  // 번호는 27번부터 준다. 실제 엔트리가 1~26번을 다 쓰고 있어서, 예전처럼 12·13·14·24를
+  // 붙이면 송범근·이태석·조위제·김진규와 겹쳐 같은 번호가 두 명 나온다.
+  { name: "Cha Bum-kun", nameKo: "차범근", num: 27, role: "ST", rating: 90, legend: true },
+  { name: "Park Ji-sung", nameKo: "박지성", num: 28, role: "CM", rating: 88, legend: true },
+  { name: "Ahn Jung-hwan", nameKo: "안정환", num: 29, role: "ST", rating: 85, legend: true },
+  { name: "Lee Chung-yong", nameKo: "이청용", num: 30, role: "RW", rating: 83, legend: true },
 ]);
 
 export const RSA_2026 = buildLineup("rsa26", [

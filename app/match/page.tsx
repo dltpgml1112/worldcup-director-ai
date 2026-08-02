@@ -6,6 +6,7 @@ import { AnimatePresence, motion } from "framer-motion";
 import { useGame } from "@/lib/store";
 import { getMatch } from "@/data/matches";
 import { snapshotAt, simulateAlternate, type AlternateResult } from "@/lib/matchEngine";
+import { orientFixture, orientedScore } from "@/lib/fixture";
 import {
   startCrowd,
   stopCrowd,
@@ -56,6 +57,7 @@ export default function MatchPage() {
   const { togglePlay, setSpeed, tick, resetClock, setMinute, play, pause } = useGame();
   const finishRound = useGame((s) => s.finishRound);
   const replayRound = useGame((s) => s.replayRound);
+  const applyTacticsNow = useGame((s) => s.applyTacticsNow);
 
   const [reportOpen, setReportOpen] = useState(false);
   const reportShownFor = useRef<number>(-1);
@@ -249,7 +251,15 @@ export default function MatchPage() {
           <TeamComparison match={match} snap={snap} minute={minute} />
           <AlternateHistory
             lang={lang}
-            realScore={match.finalScore}
+            // 실제 결과는 공식 기록 순서(실제 홈이 왼쪽)로, 내 결과는 내 팀이 왼쪽으로 둔다
+            realScore={orientedScore(match, match.finalScore)}
+            realOrder={
+              orientFixture(match, match.home, match.away).left.code +
+              "–" +
+              orientFixture(match, match.home, match.away).right.code
+            }
+            // 비교는 항상 내 팀 기준 (match.finalScore[0] = 내 팀 득점)
+            changed={match.finalScore[0] !== alt.score[0] || match.finalScore[1] !== alt.score[1]}
             alt={alt}
             narrative={lang === "ko" && match.realNarrativeKo ? match.realNarrativeKo : match.realNarrative}
           />
@@ -287,6 +297,21 @@ export default function MatchPage() {
               </div>
             </div>
           </div>
+
+          {/*
+            경기 중 전술 변경 — 지나간 분은 그대로 두고 이후만 다시 만든다.
+            슬라이더마다 자동 반영하면 재생 중 화면이 요동치므로 명시 버튼으로 둔다.
+          */}
+          {isCampaign && minute > 0 && !isFT && (
+            <button
+              onClick={applyTacticsNow}
+              className="w-full rounded-xl border border-neon-gold/40 bg-neon-gold/10 px-4 py-2.5 text-sm font-semibold text-neon-gold transition hover:bg-neon-gold/20"
+            >
+              {lang === "ko"
+                ? `지금 전술로 ${minute}분 이후 다시 전개`
+                : `Re-run from ${minute}' with current tactics`}
+            </button>
+          )}
 
           <TacticalBoard />
         </div>
@@ -421,16 +446,21 @@ function SubToast({ lang }: { lang: Lang }) {
 function AlternateHistory({
   lang,
   realScore,
+  realOrder,
+  changed,
   alt,
   narrative,
 }: {
   lang: Lang;
   realScore: [number, number];
+  /** 실제 결과의 팀 순서 표기 (예: "RSA–KOR") — 내 결과와 순서가 다를 수 있어 명시한다 */
+  realOrder: string;
+  /** 내 전술 결과가 실제와 달라졌는가 (비교는 내 팀 기준으로 caller가 판정한다) */
+  changed: boolean;
   alt: AlternateResult;
   narrative: string;
 }) {
   const altScore = alt.score;
-  const changed = realScore[0] !== altScore[0] || realScore[1] !== altScore[1];
   const winLine = lang === "ko" ? `당신의 전술은 ` : `Your tactics project a `;
   return (
     <div className="panel rounded-lg p-4">
@@ -442,10 +472,13 @@ function AlternateHistory({
         <div className="rounded-md border border-surface-line bg-surface-panel p-3 text-center">
           <div className="text-[10px] uppercase tracking-wide text-ink-muted">{t(lang, "alt.real")}</div>
           <div className="metric-num font-display text-3xl font-bold text-ink-secondary">{realScore[0]}–{realScore[1]}</div>
+          {/* 공식 기록 순서라 내 결과와 좌우가 다를 수 있다 — 어느 팀이 앞인지 밝힌다 */}
+          <div className="metric-num text-[10px] text-ink-muted">{realOrder}</div>
         </div>
         <div className="rounded-md border border-team-home/40 bg-team-home/10 p-3 text-center">
           <div className="text-[10px] uppercase tracking-wide text-team-home">{t(lang, "alt.your")}</div>
           <div className="metric-num font-display text-3xl font-bold text-team-home">{altScore[0]}–{altScore[1]}</div>
+          <div className="metric-num text-[10px] text-ink-muted">{lang === "ko" ? "내 팀 먼저" : "you first"}</div>
           {/* 표본 하나가 아니라 '가장 확률이 높은 스코어'임을 밝힌다 */}
           <div className="metric-num text-[10px] text-ink-muted">
             {lang === "ko" ? "최빈 스코어" : "most likely"} · {alt.scorelineProb}%
